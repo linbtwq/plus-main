@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><title>rate</title>
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <div class="floating-bg">
+        <div class="float-item" style="left: 10%; animation-duration: 12s;">🐰</div>
+        <div class="float-item" style="left: 30%; animation-duration: 15s; font-size: 1.5rem;">🎀</div>
+        <div class="float-item" style="left: 50%; animation-duration: 18s;">🌸</div>
+        <div class="float-item" style="left: 70%; animation-duration: 14s; font-size: 1.8rem;">🍓</div>
+        <div class="float-item" style="left: 85%; animation-duration: 16s;">🐰</div>
+        <div class="float-item" style="left: 20%; animation-duration: 20s; animation-delay: 5s;">🍓</div>
+        <div class="float-item" style="left: 60%; animation-duration: 17s; animation-delay: 3s;">🎀</div>
+        <div class="float-item" style="left: 80%; animation-duration: 13s; animation-delay: 7s;">🌸</div>
+    </div>
+    <div class="bg-blobs">
+        <div class="blob ruby"></div>
+        <div class="blob dark"></div>
+    </div>
+
+    <div class="wrapper">
+        <div class="header-nav"><a href="../index.html" class="btn-back">← НАЗАД</a></div>
+
+        <div class="glass-panel floating-panel">
+            <div class="search-wrapper" id="search-wrapper">
+                <input type="text" id="movie-title" class="title-input" placeholder="НАЙТИ ФИЛЬМ..." autocomplete="off">
+                <div id="suggestions" class="suggestions-list"></div>
+            </div>
+            
+            <div id="movie-preview" class="movie-preview hidden">
+                <img id="preview-poster" src="" alt="Постер" class="preview-poster">
+                <div class="preview-info">
+                    <div id="preview-title" class="preview-title">Название</div>
+                    <div id="preview-genres" class="preview-genres">Жанры</div>
+                    
+                    <div class="custom-dropdown" id="media-type-dropdown" style="width: 100%; margin-top: 10px; z-index: 100;">
+                 <div class="dropdown-selected" id="media-type-selected" data-value="movie">🎬 ФИЛЬМ <span class="arrow">▼</span></div>
+    <div class="dropdown-options" id="media-type-options">
+        <div class="dropdown-item active" data-value="movie">🎬 ФИЛЬМ</div>
+        <div class="dropdown-item" data-value="anime">🍥 АНИМЕ</div>
+        <div class="dropdown-item" data-value="series">📺 СЕРИАЛ</div>
+    </div>
+</div>
+                </div>
+                <button id="clear-preview" class="clear-btn" title="Выбрать другой">✕</button>
+            </div>
+            
+            <div class="sliders-wrapper">
+                <div class="user-column" id="user1-col">
+    <div class="section-title hidden" id="user1-title">МОИ ОЦЕНКИ 🌸</div>
+    <div class="section-box">
+        <div class="range-group"><label>Сценарий <span id="val-script-1" class="val-display">7.0</span></label><input type="range" id="script-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Актеры <span id="val-actors-1" class="val-display">7.0</span></label><input type="range" id="actors-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Режиссура <span id="val-directing-1" class="val-display">7.0</span></label><input type="range" id="directing-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Персонажи <span id="val-chars-1" class="val-display">7.0</span></label><input type="range" id="chars-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Идея <span id="val-idea-1" class="val-display">7.0</span></label><input type="range" id="idea-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+<div class="range-group"><label>Атмосфера <span id="val-atmosphere-1" class="val-display">4.0</span></label><input type="range" id="atmosphere-1" min="0.1" max="5" step="0.1" value="4.0"></div>
+<div class="range-group"><label>Впечатление <span id="val-impression-1" class="val-display">4.0</span></label><input type="range" id="impression-1" min="0.1" max="5" step="0.1" value="4.0"></div>
+    </div>
+</div>
+
+<div class="user-column hidden" id="user2-col">
+    <div class="section-title shimmer-text">ЕЁ ОЦЕНКИ 🎀</div>
+    <div class="section-box">
+        <div class="range-group"><label>Сценарий <span id="val-script-2" class="val-display">7.0</span></label><input type="range" id="script-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Актеры <span id="val-actors-2" class="val-display">7.0</span></label><input type="range" id="actors-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Режиссура <span id="val-directing-2" class="val-display">7.0</span></label><input type="range" id="directing-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Персонажи <span id="val-chars-2" class="val-display">7.0</span></label><input type="range" id="chars-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Идея <span id="val-idea-2" class="val-display">7.0</span></label><input type="range" id="idea-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+        <div class="range-group"><label>Атмосфера <span id="val-atmosphere-2" class="val-display">4.0</span></label><input type="range" id="atmosphere-2" min="0.1" max="5" step="0.1" value="4.0"></div>
+<div class="range-group"><label>Впечатление <span id="val-impression-2" class="val-display">4.0</span></label><input type="range" id="impression-2" min="0.1" max="5" step="0.1" value="4.0"></div>
+</div>
+            </div>
+
+            <div class="duo-toggle-container shine-effect">
+                <label class="duo-label">
+                    <input type="checkbox" id="is-duo-checkbox">
+                    <span>ПАРНАЯ ОЦЕНКА 🐰💕</span>
+                </label>
+            </div>
+
+            <div class="final-score-box">
+                <div class="section-title">ОБЩИЙ ИТОГ ✨</div>
+                <div id="final-score" class="score-display">71</div>
+                <button id="save-btn" class="btn-primary shine-btn">СОХРАНИТЬ</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="rate.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>plus.plus</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="floating-bg">
+        <div class="float-item" style="left: 10%; animation-duration: 12s;">🐰</div>
+        <div class="float-item" style="left: 30%; animation-duration: 15s; font-size: 1.5rem;">🎀</div>
+        <div class="float-item" style="left: 50%; animation-duration: 18s;">🌸</div>
+        <div class="float-item" style="left: 70%; animation-duration: 14s; font-size: 1.8rem;">🍓</div>
+        <div class="float-item" style="left: 85%; animation-duration: 16s;">🐰</div>
+        <div class="float-item" style="left: 20%; animation-duration: 20s; animation-delay: 5s;">🍓</div>
+        <div class="float-item" style="left: 60%; animation-duration: 17s; animation-delay: 3s;">🎀</div>
+        <div class="float-item" style="left: 80%; animation-duration: 13s; animation-delay: 7s;">🌸</div>
+    </div>
+    <div class="bg-blobs">
+        <div class="blob ruby"></div>
+        <div class="blob dark"></div>
+    </div>
+    
+    <div class="wrapper center-screen">
+        <div class="main-menu glass-panel auth-card">
+            <div class="badge-love">amao-nya~🐰💕</div>
+            <h1 class="main-title">plus<span class="accent">.</span>plus</h1>
+            
+            <div id="login-section">
+                <p class="welcome-subtitle">Войди, чтобы сохранять ваши любимые фильмы и аниме 🌸</p>
+                <button id="login-btn" class="btn-primary btn-huge">ВОЙТИ ЧЕРЕЗ GOOGLE ✨</button>
+            </div>
+
+            <div id="app-menu" style="display: none;">
+                <div class="profile-showcase">
+                    <div class="avatar-wrapper">
+                        <img id="user-avatar" referrerpolicy="no-referrer" class="avatar-img">
+                        <div class="avatar-ring"></div>
+                    </div>
+                    <div class="welcome-text">ПРИВЕТ,</div>
+                    <div id="user-name" class="user-name-text"></div>
+                    <button id="logout-btn" class="logout-link">выйти из аккаунта</button>
+                </div>
+                
+                <div class="menu-actions">
+                    <a href="rate/rate.html" class="btn-primary btn-huge">
+                        <span class="btn-icon">💌</span>
+                        <span class="btn-text">ОЦЕНИТЬ ФИЛЬМ</span>
+                    </a>
+                    <a href="list/list.html" class="btn-secondary btn-huge">
+                        <span class="btn-icon">🎞️</span>
+                        <span class="btn-text">ЛЕНТА ОЦЕНОК</span>
+                    </a>
+                    <div class="menu-actions">
+                    <a href="roulette/roulette.html" class="btn-primary btn-huge">
+                        <span class="btn-icon">🎰</span>
+                        <span class="btn-text">РУЛЕТКА</span>
+                    </a>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <script type="module">
+        import { auth, provider, signInWithPopup, signOut, onAuthStateChanged } from './firebase-init.js';
+        onAuthStateChanged(auth, (user) => {
+            document.getElementById('login-section').style.display = user ? 'none' : 'block';
+            document.getElementById('app-menu').style.display = user ? 'block' : 'none';
+            if (user) {
+                document.getElementById('user-name').textContent = user.displayName;
+                document.getElementById('user-avatar').src = user.photoURL;
+            }
+        });
+        document.getElementById('login-btn').addEventListener('click', () => signInWithPopup(auth, provider));
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+    </script>
+
+</body>
+</html>

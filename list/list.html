@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><title>list</title>
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <div class="floating-bg">
+        <div class="float-item" style="left: 10%; animation-duration: 12s;">🐰</div>
+        <div class="float-item" style="left: 30%; animation-duration: 15s; font-size: 1.5rem;">🎀</div>
+        <div class="float-item" style="left: 50%; animation-duration: 18s;">🌸</div>
+        <div class="float-item" style="left: 70%; animation-duration: 14s; font-size: 1.8rem;">🍓</div>
+        <div class="float-item" style="left: 85%; animation-duration: 16s;">🐰</div>
+        <div class="float-item" style="left: 20%; animation-duration: 20s; animation-delay: 5s;">🍓</div>
+        <div class="float-item" style="left: 60%; animation-duration: 17s; animation-delay: 3s;">🎀</div>
+        <div class="float-item" style="left: 80%; animation-duration: 13s; animation-delay: 7s;">🌸</div>
+    </div>
+    <div class="bg-blobs">
+    <div class="blob ruby"></div>
+    <div class="blob dark"></div>
+</div>
+    <div class="interactive-bg">
+        <div class="aurora-blob ruby"></div>
+        <div class="aurora-blob dark"></div>
+    </div>
+
+    <div class="wrapper">
+        <div class="header-nav">
+    <a href="../index.html" class="btn-back">← НА ГЛАВНУЮ</a>
+    <div class="custom-dropdown" id="custom-sort">
+        <div class="dropdown-selected" id="dropdown-selected">СНАЧАЛА НОВЫЕ <span class="arrow">▼</span></div>
+        <div class="dropdown-options" id="dropdown-options">
+            <div class="dropdown-item active" data-value="new">СНАЧАЛА НОВЫЕ</div>
+            <div class="dropdown-item" data-value="high">ТОП БАЛЛ</div>
+            <div class="dropdown-item" data-value="low">ХУДШИЕ</div>
+        </div>
+    </div>
+</div>
+        <div id="type-filters" class="type-tabs">
+                <button class="type-tab active" data-type="all">ВСЕ</button>
+            <button class="type-tab" data-type="movie">ФИЛЬМЫ</button>
+            <button class="type-tab" data-type="anime">АНИМЕ</button>
+            <button class="type-tab" data-type="series">СЕРИАЛЫ</button>
+        </div>
+        <div id="genre-filters" class="genre-filters"></div>
+        <div id="movies-grid" class="movies-grid"></div>
+    </div>
+    <script type="module" src="list.js"></script>
+    <link rel="stylesheet" href="../style.css">
+                <script>
+        document.addEventListener('mousemove', (e) => {
+            document.body.style.setProperty('--mouse-x', (e.clientX / window.innerWidth - 0.5) * 2);
+            document.body.style.setProperty('--mouse-y', (e.clientY / window.innerHeight - 0.5) * 2);
+        });
+    </script>
+    <div id="custom-modal" class="modal-overlay hidden">
+    <div class="glass-panel modal-box">
+        <p id="modal-text">Точно удалить эту оценку?</p>
+        <div class="modal-actions">
+            <button id="modal-confirm" class="btn-primary">УДАЛИТЬ</button>
+            <button id="modal-cancel" class="btn-secondary">ОТМЕНА</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

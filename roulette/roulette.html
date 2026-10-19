@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>roulette</title>
+    <link rel="icon" type="image/png" href="../favicon.png">  
+    
+    <style>
+        html, body {
+            background-color: #fdf5f7 !important;
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+        }
+        .casino-master-board, .casino-left, .casino-right {
+            opacity: 0; 
+        }
+    </style>
+
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="roulette.css">
+</head>
+<body>
+    <div class="floating-bg">
+        <div class="float-item" style="left: 10%; animation-duration: 12s;">🐰</div>
+        <div class="float-item" style="left: 30%; animation-duration: 15s;">🎀</div>
+        <div class="float-item" style="left: 50%; animation-duration: 18s;">🌸</div>
+        <div class="float-item" style="left: 70%; animation-duration: 14s;">🍓</div>
+        <div class="float-item" style="left: 85%; animation-duration: 16s;">🐰</div>
+    </div>
+    <div class="sparkles-layer"></div>
+    <div class="bg-blobs"><div class="blob ruby"></div><div class="blob dark"></div></div>
+
+    <div class="wrapper center-screen">
+        <div class="header-nav" style="position: absolute; top: 20px; left: -20px; z-index: 100;">
+            <a href="../index.html" class="btn-back">← НАЗАД</a>
+        </div>
+
+        <div class="glass-panel floating-panel casino-master-board">
+            <div class="badge-love" style="margin: 0 auto 20px; display: table;">слоты 🎰💕</div>
+            
+            <div class="casino-split">
+                
+                <div class="casino-left">
+                    <h2 class="section-title shimmer-text" style="font-size: 1.1rem; margin-bottom: 15px;">КРУТИ БАРАБАН</h2>
+                    
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="classic">КЛАССИКА</button>
+                        <button class="mode-btn" data-mode="elimination">ВЫБЫВАНИЕ</button>
+                    </div>
+                    <div class="speed-control">
+                        <label for="spin-duration">ВРЕМЯ КРУЧЕНИЯ: <span id="speed-val" class="val-display">5 сек</span></label>
+                        <input type="range" id="spin-duration" min="1" max="10" step="0.5" value="5">
+                    </div>
+
+                    <div class="slot-window">
+                        <div class="slot-overlay"></div>
+                        <div class="slot-selector"></div>
+                        <div id="slot-reel" class="slot-reel">
+                            <div class="slot-item">ЖДЕМ ФИЛЬМЫ...</div>
+                        </div>
+                    </div>
+
+                    <button id="spin-btn" class="btn-primary btn-huge shine-btn" style="margin-top: 25px; border-radius: 16px !important;">
+                        ДЕРНУТЬ ✨
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="casino-right">
+                    <h2 class="section-title" style="margin-bottom: 5px;">СПИСОК 🌸</h2>
+                    <div class="notebook-wrapper">
+                        <textarea id="movie-list" placeholder=""></textarea>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <div id="result-modal" class="modal-overlay hidden">
+        <div class="glass-panel modal-box winner-box">
+            <div class="section-title">ДЖЕКПОТ! 🎰✨</div>
+            <div id="winner-name" class="movie-title" style="font-size: 1.5rem; margin: 20px 0; color: var(--accent);"></div>
+            <button id="close-modal" class="btn-primary shine-btn">ура! 🌸</button>
+        </div>
+    </div>
+
+    <script type="module" src="roulette.js"></script>
+</body>
+</html>
