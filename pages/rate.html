@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>plus.plus | Оценка</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+    <canvas id="snow-canvas"></canvas>
+    <header class="top-deck">
+        <div class="deck-brand">
+            <button class="menu-trigger" id="burger-btn" aria-label="Меню" aria-controls="sidebar" aria-expanded="false"><span></span><span></span></button>
+            <a href="../index.html" class="brand-text">plus<span>.</span>plus</a>
+        </div>
+        <div class="deck-user"><span>Оценка 💌</span></div>
+    </header>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="side-logo">plus<span>.</span>plus</div>
+        <nav class="side-nav">
+            <a href="catalog.html" class="side-link"><span>🍿</span> Каталог</a>
+            <a href="rate.html" class="side-link active"><span>💌</span> Оценить</a>
+            <a href="list.html" class="side-link"><span>🎞️</span> Архив</a>
+            <a href="roulette.html" class="side-link"><span>🎰</span> Слот</a>
+        </nav>
+        <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
+    </aside>
+
+    <main class="rate-wrapper">
+        <div class="rate-grid">
+            <div class="panel left-panel">
+                <h2 style="font-size: 2rem; margin-bottom: 20px; text-align: center;">Что смотрим? 🍿</h2>
+                <div class="search-wrapper" id="search-wrapper" style="position:relative;">
+                    <input type="text" id="movie-title" class="title-input" placeholder="Введи название..." autocomplete="off">
+                    <div id="suggestions" class="suggestions-list" style="display:none;"></div>
+                </div>
+                <div id="movie-preview" class="movie-preview-large hidden">
+                    <div class="poster-frame">
+                        <img id="preview-poster-img" src="" alt="Постер">
+                        <div id="preview-no-poster" class="no-poster-bg hidden">🎬<br>НЕТ ФОТО</div>
+                        <button id="clear-preview" class="clear-btn">✕</button>
+                        <div class="poster-overlay">
+                            <div id="preview-title" class="preview-title">Название</div>
+                            <div id="preview-genres" class="preview-genres">Жанры</div>
+                        </div>
+                    </div>
+                    <div class="sort-selector poster-type-dropdown" id="media-type-dropdown">
+                        <div class="sort-chosen" id="media-type-selected" data-value="movie">🎬 Фильм <span>▼</span></div>
+                        <div class="sort-popout" id="media-type-options">
+                            <div class="sort-opt active" data-value="movie">🎬 Фильм</div>
+                            <div class="sort-opt" data-value="anime">🍥 Аниме</div>
+                            <div class="sort-opt" data-value="series">📺 Сериал</div>
+                        </div>
+                    </div>
+                    <div id="preview-overview" class="preview-overview"></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="panel">
+                    <label class="duo-toggle">
+                        <input type="checkbox" id="is-duo-checkbox">
+                        Парная совместная оценка 🐰💕
+                    </label>
+                    <div class="sliders-wrapper" id="sliders-wrapper">
+                        <div class="user-column" id="user1-col">
+                            <div class="hidden" id="user1-title" style="color:var(--muted); font-size:0.75rem; margin-bottom:16px; font-weight:800; text-transform:uppercase;">ТВОИ ОЦЕНКИ</div>
+                            <div class="range-group"><label>Сценарий <span id="val-script-1" class="val-display">7.0</span></label><input type="range" id="script-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Актеры <span id="val-actors-1" class="val-display">7.0</span></label><input type="range" id="actors-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Режиссура <span id="val-directing-1" class="val-display">7.0</span></label><input type="range" id="directing-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Персонажи <span id="val-chars-1" class="val-display">7.0</span></label><input type="range" id="chars-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Идея <span id="val-idea-1" class="val-display">7.0</span></label><input type="range" id="idea-1" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Атмосфера <span id="val-atmosphere-1" class="val-display">4.0</span></label><input type="range" id="atmosphere-1" min="0.1" max="5" step="0.1" value="4.0"></div>
+                            <div class="range-group"><label>Впечатление <span id="val-impression-1" class="val-display">4.0</span></label><input type="range" id="impression-1" min="0.1" max="5" step="0.1" value="4.0"></div>
+                        </div>
+                        <div class="user-column hidden" id="user2-col">
+                            <div style="color:var(--muted); font-size:0.75rem; margin-bottom:16px; font-weight:800; text-transform:uppercase;">ЕЁ ОЦЕНКИ</div>
+                            <div class="range-group"><label>Сценарий <span id="val-script-2" class="val-display">7.0</span></label><input type="range" id="script-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Актеры <span id="val-actors-2" class="val-display">7.0</span></label><input type="range" id="actors-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Режиссура <span id="val-directing-2" class="val-display">7.0</span></label><input type="range" id="directing-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Персонажи <span id="val-chars-2" class="val-display">7.0</span></label><input type="range" id="chars-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Идея <span id="val-idea-2" class="val-display">7.0</span></label><input type="range" id="idea-2" min="0.1" max="10" step="0.1" value="7.0"></div>
+                            <div class="range-group"><label>Атмосфера <span id="val-atmosphere-2" class="val-display">4.0</span></label><input type="range" id="atmosphere-2" min="0.1" max="5" step="0.1" value="4.0"></div>
+                            <div class="range-group"><label>Впечатление <span id="val-impression-2" class="val-display">4.0</span></label><input type="range" id="impression-2" min="0.1" max="5" step="0.1" value="4.0"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 24px;">
+                        <label style="font-size:0.85rem; font-weight:800; text-transform:uppercase; color:var(--ink); display:block; margin-bottom:10px;">Короткий отзыв</label>
+                        <textarea id="review-text" class="review-textarea" placeholder="Пара слов о фильме..."></textarea>
+                    </div>
+                </div>
+
+                <div class="final-score-box panel">
+                    <div style="color:var(--ink-mid); font-weight:800; letter-spacing:1px; font-size:0.85rem; text-transform:uppercase;">ИТОГОВЫЙ БАЛЛ</div>
+                    <div id="final-score" class="score-display color-lime">7.1</div>
+                    <div id="tmdb-compare" class="tmdb-compare hidden">Рейтинг TMDB: <span id="tmdb-score">0.0</span></div>
+                    <div id="score-verdict" class="verdict-text">Оценка фильма</div>
+                    <button id="save-btn" class="btn-retro">СОХРАНИТЬ В АРХИВ</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="bottom-dock">
+        <a href="catalog.html" class="dock-btn"><i>🍿</i><span>Каталог</span></a>
+        <a href="rate.html" class="dock-btn active"><i>💌</i><span>Оценка</span></a>
+        <a href="list.html" class="dock-btn"><i>🎞️</i><span>Архив</span></a>
+        <a href="roulette.html" class="dock-btn"><i>🎰</i><span>Слот</span></a>
+    </nav>
+
+    <script src="../assets/js/snow.js"></script>
+    <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/rate.js"></script>
+</body>
+</html>

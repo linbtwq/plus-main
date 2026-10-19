@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plus.plus | Слот выбора</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+</head>
+<body>
+    <canvas id="snow-canvas"></canvas>
+    <header class="top-deck">
+        <div class="deck-brand">
+            <button class="menu-trigger" id="burger-btn" aria-label="Меню" aria-controls="sidebar" aria-expanded="false"><span></span><span></span></button>
+            <a href="../index.html" class="brand-text">plus<span>.</span>plus</a>
+        </div>
+        <div class="deck-user"><span>Рулетка 🎰</span></div>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="side-logo">plus<span>.</span>plus</div>
+        <nav class="side-nav">
+            <a href="catalog.html" class="side-link"><span>🍿</span> Каталог</a>
+            <a href="rate.html" class="side-link"><span>💌</span> Оценить</a>
+            <a href="list.html" class="side-link"><span>🎞️</span> Архив</a>
+            <a href="roulette.html" class="side-link active"><span>🎰</span> Слот</a>
+        </nav>
+        <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
+    </aside>
+
+    <main class="roulette-wrapper">
+        <h1 style="text-align:center; font-size:2.8rem; margin-bottom: 12px; color: var(--paper);">Слот судьбы 🎰</h1>
+        <p style="text-align:center; color:var(--muted); font-weight: 600; margin-bottom: 32px;">Загрузи список тайтлов и доверь выбор случайному барабану.</p>
+        
+        <div class="slot-machine">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="classic">Классика</button>
+                <button class="mode-btn" data-mode="elimination">Выбывание</button>
+            </div>
+            
+            <div class="slot-window">
+                <div class="slot-overlay"></div>
+                <div class="slot-selector"></div>
+                <div id="slot-reel" class="slot-reel">
+                    <div class="slot-item" style="color: var(--muted); font-size: 1rem;">ЖДЕМ КРУТКИ...</div>
+                </div>
+            </div>
+
+            <div class="duration-group">
+                <label>ДЛИТЕЛЬНОСТЬ: <span id="speed-val">5 сек</span></label>
+                <input type="range" id="spin-duration" min="1" max="10" step="0.5" value="5">
+            </div>
+
+            <div class="controls-row">
+                <textarea id="movie-list" placeholder="Введи фильмы (каждый с новой строки)..."></textarea>
+                <button id="spin-btn" class="btn-retro" style="min-width: 200px; height: 160px; font-size: 1.3rem;">КРУТИТЬ</button>
+            </div>
+        </div>
+    </main>
+
+    <nav class="bottom-dock">
+        <a href="catalog.html" class="dock-btn"><i>🍿</i><span>Каталог</span></a>
+        <a href="rate.html" class="dock-btn"><i>💌</i><span>Оценка</span></a>
+        <a href="list.html" class="dock-btn"><i>🎞️</i><span>Архив</span></a>
+        <a href="roulette.html" class="dock-btn active"><i>🎰</i><span>Слот</span></a>
+    </nav>
+
+    <div id="result-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="border-color: var(--gold);">
+            <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+            <h2 style="color: var(--rust); font-size: 2rem;">ДЖЕКПОТ!</h2>
+            <div id="winner-name" style="font-family: 'Alfa Slab One'; font-size: 1.8rem; margin: 24px 0; color: var(--ink);"></div>
+            <button id="close-modal" class="btn-retro pine">СМОТРИМ ЭТО 🍿</button>
+        </div>
+    </div>
+
+    <script src="../assets/js/snow.js"></script>
+    <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/roulette.js"></script>
+</body>
+</html>

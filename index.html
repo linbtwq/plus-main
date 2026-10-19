@@ -2,81 +2,78 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>plus.plus</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plus.plus | Личная Киновселенная</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
 </head>
 <body>
-    <div class="floating-bg">
-        <div class="float-item" style="left: 10%; animation-duration: 12s;">🐰</div>
-        <div class="float-item" style="left: 30%; animation-duration: 15s; font-size: 1.5rem;">🎀</div>
-        <div class="float-item" style="left: 50%; animation-duration: 18s;">🌸</div>
-        <div class="float-item" style="left: 70%; animation-duration: 14s; font-size: 1.8rem;">🍓</div>
-        <div class="float-item" style="left: 85%; animation-duration: 16s;">🐰</div>
-        <div class="float-item" style="left: 20%; animation-duration: 20s; animation-delay: 5s;">🍓</div>
-        <div class="float-item" style="left: 60%; animation-duration: 17s; animation-delay: 3s;">🎀</div>
-        <div class="float-item" style="left: 80%; animation-duration: 13s; animation-delay: 7s;">🌸</div>
-    </div>
-    <div class="bg-blobs">
-        <div class="blob ruby"></div>
-        <div class="blob dark"></div>
-    </div>
-    
-    <div class="wrapper center-screen">
-        <div class="main-menu glass-panel auth-card">
-            <div class="badge-love">amao-nya~🐰💕</div>
-            <h1 class="main-title">plus<span class="accent">.</span>plus</h1>
-            
-            <div id="login-section">
-                <p class="welcome-subtitle">Войди, чтобы сохранять ваши любимые фильмы и аниме 🌸</p>
-                <button id="login-btn" class="btn-primary btn-huge">ВОЙТИ ЧЕРЕЗ GOOGLE ✨</button>
-            </div>
+    <canvas id="snow-canvas"></canvas>
 
-            <div id="app-menu" style="display: none;">
-                <div class="profile-showcase">
-                    <div class="avatar-wrapper">
-                        <img id="user-avatar" referrerpolicy="no-referrer" class="avatar-img">
-                        <div class="avatar-ring"></div>
-                    </div>
-                    <div class="welcome-text">ПРИВЕТ,</div>
-                    <div id="user-name" class="user-name-text"></div>
-                    <button id="logout-btn" class="logout-link">выйти из аккаунта</button>
-                </div>
-                
-                <div class="menu-actions">
-                    <a href="rate/rate.html" class="btn-primary btn-huge">
-                        <span class="btn-icon">💌</span>
-                        <span class="btn-text">ОЦЕНИТЬ ФИЛЬМ</span>
-                    </a>
-                    <a href="list/list.html" class="btn-secondary btn-huge">
-                        <span class="btn-icon">🎞️</span>
-                        <span class="btn-text">ЛЕНТА ОЦЕНОК</span>
-                    </a>
-                    <div class="menu-actions">
-                    <a href="roulette/roulette.html" class="btn-primary btn-huge">
-                        <span class="btn-icon">🎰</span>
-                        <span class="btn-text">РУЛЕТКА</span>
-                    </a>
-                </div>
-                </div>
+    <div id="login-section" class="hero-layout">
+        <div class="hero-card">
+            <div class="hero-tag">❄ NEW YEAR 2026 ❄</div>
+            <h1 class="hero-title">plus<span>.</span>plus</h1>
+            <p class="hero-subtitle">Твоя личная уютная киновселенная. Оценивай фильмы вместе, веди картотеку и крути праздничный слот.</p>
+            <div class="hero-ornament">🎄 ✦ 🎞️ ✦ 🎁</div>
+            <button id="login-btn" class="btn-retro">Войти через Google</button>
+        </div>
+    </div>
+
+    <div id="app-menu" class="dashboard" style="display: none;">
+        
+        <!-- HERO БАННЕР -->
+        <div id="cinema-hero" class="cinema-hero hidden">
+            <div id="hero-banner-bg" class="cinema-hero-bg"></div>
+            <div class="cinema-hero-overlay"></div>
+            <div class="cinema-hero-content">
+                <h1 id="hero-banner-title">Название</h1>
+                <p id="hero-banner-desc">Описание фильма...</p>
+                <button id="hero-banner-play" class="btn-retro" style="width: max-content; padding: 12px 24px;">▶ СМОТРЕТЬ ТРЕЙЛЕР</button>
             </div>
         </div>
-    </div> 
 
-    <script type="module">
-        import { auth, provider, signInWithPopup, signOut, onAuthStateChanged } from './firebase-init.js';
-        onAuthStateChanged(auth, (user) => {
-            document.getElementById('login-section').style.display = user ? 'none' : 'block';
-            document.getElementById('app-menu').style.display = user ? 'block' : 'none';
-            if (user) {
-                document.getElementById('user-name').textContent = user.displayName;
-                document.getElementById('user-avatar').src = user.photoURL;
-            }
-        });
-        document.getElementById('login-btn').addEventListener('click', () => signInWithPopup(auth, provider));
-        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-    </script>
+        <header class="user-header">
+            <img id="user-avatar" class="user-avatar" referrerpolicy="no-referrer" alt="">
+            <div class="user-info">
+                <h2 id="user-name">Пользователь</h2>
+                <p>С возвращением в личный архив ❄</p>
+            </div>
+            <button id="logout-btn" class="btn-logout">Выйти</button>
+        </header>
 
+        <div class="menu-grid">
+            <a href="pages/catalog.html" class="menu-card">
+                <div class="menu-icon">🍿</div>
+                <h3>Каталог</h3>
+                <p>Тренды недели. Смотри трейлеры и кидай фильмы в рулетку</p>
+            </a>
+            <a href="pages/rate.html" class="menu-card">
+                <div class="menu-icon">💌</div>
+                <h3>Оценить</h3>
+                <p>Разложи фильм по полочкам, выставь баллы и вынеси вердикт</p>
+            </a>
+            <a href="pages/list.html" class="menu-card">
+                <div class="menu-icon">🎞️</div>
+                <h3>Лента</h3>
+                <p>Твой архив шедевров, разочарований и совместных вечеров</p>
+            </a>
+            <a href="pages/roulette.html" class="menu-card">
+                <div class="menu-icon">🎰</div>
+                <h3>Рулетка</h3>
+                <p>Не знаешь, что глянуть? Доверь выбор праздничному слоту</p>
+            </a>
+        </div>
+    </div>
+
+    <div id="trailer-modal" class="modal-overlay hidden">
+        <div class="trailer-box">
+            <button id="close-trailer" class="clear-btn" style="top: -15px; right: -15px; z-index: 20;">✕</button>
+            <iframe id="trailer-iframe" width="100%" height="100%" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script src="assets/js/snow.js"></script>
+    <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

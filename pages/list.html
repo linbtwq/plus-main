@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta charset="UTF-8">
+    <title>plus.plus | Киноархив</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+</head>
+<body>
+    <canvas id="snow-canvas"></canvas>
+    <header class="top-deck">
+        <div class="deck-brand">
+            <button class="menu-trigger" id="burger-btn" aria-label="Меню" aria-controls="sidebar" aria-expanded="false"><span></span><span></span></button>
+            <a href="../index.html" class="brand-text">plus<span>.</span>plus</a>
+        </div>
+        <div class="deck-search"><input type="text" id="live-search" placeholder="Поиск по архиву..." autocomplete="off"></div>
+        <div class="deck-user" id="user-badge">
+            <img id="nav-user-avatar" src="" alt="" referrerpolicy="no-referrer">
+            <span id="nav-user-name">Киноман</span>
+        </div>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="side-logo">plus<span>.</span>plus</div>
+        <nav class="side-nav">
+            <a href="catalog.html" class="side-link"><span>🍿</span> Каталог</a>
+            <a href="rate.html" class="side-link"><span>💌</span> Оценить</a>
+            <a href="list.html" class="side-link active"><span>🎞️</span> Архив</a>
+            <a href="roulette.html" class="side-link"><span>🎰</span> Слот</a>
+        </nav>
+        <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
+    </aside>
+
+    <main class="archive-container">
+        <div class="scoreboard-banner">
+            <div class="scoreboard-info">
+                <div class="tag-label">АРХИВ ВПЕЧАТЛЕНИЙ</div>
+                <h1 class="scoreboard-title">Твоя Кинотека</h1>
+            </div>
+            <div class="scoreboard-metrics">
+                <div class="metric-card"><span class="m-val" id="stat-total">0</span><span class="m-lbl">ТАЙТЛОВ</span></div>
+                <div class="metric-card gold-border"><span class="m-val gold-txt" id="stat-masterpieces">0</span><span class="m-lbl">ШЕДЕВРОВ 👑</span></div>
+                <div class="metric-card"><span class="m-val" id="stat-avg">0.0</span><span class="m-lbl">СР. БАЛЛ</span></div>
+            </div>
+        </div>
+
+        <div class="control-deck">
+            <div class="control-row">
+                <div class="category-switch" id="type-filters">
+                    <button class="cat-btn type-btn active" data-type="all">Все</button>
+                    <button class="cat-btn type-btn" data-type="movie">Фильмы</button>
+                    <button class="cat-btn type-btn" data-type="anime">Аниме</button>
+                    <button class="cat-btn type-btn" data-type="series">Сериалы</button>
+                </div>
+                <div class="sort-selector" id="custom-sort">
+                    <div class="sort-chosen" id="dropdown-selected">Сначала новые <span>▼</span></div>
+                    <div class="sort-popout" id="dropdown-options">
+                        <div class="sort-opt active" data-value="new">Сначала новые</div>
+                        <div class="sort-opt" data-value="high">Топ балл</div>
+                        <div class="sort-opt" data-value="low">Худшие</div>
+                    </div>
+                </div>
+            </div>
+            <div class="genre-rail" id="genre-filters"></div>
+        </div>
+
+        <div id="movies-grid" class="cards-deck"></div>
+    </main>
+
+    <nav class="bottom-dock">
+        <a href="catalog.html" class="dock-btn"><i>🍿</i><span>Каталог</span></a>
+        <a href="rate.html" class="dock-btn"><i>💌</i><span>Оценка</span></a>
+        <a href="list.html" class="dock-btn active"><i>🎞️</i><span>Архив</span></a>
+        <a href="roulette.html" class="dock-btn"><i>🎰</i><span>Слот</span></a>
+    </nav>
+
+    <!-- Модалка деталей из архива -->
+    <div id="archive-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 700px; padding: 0; text-align: left; overflow: hidden;">
+            <button id="close-archive-modal" class="clear-btn" style="top: 12px; right: 12px; z-index: 20;">✕</button>
+            <div class="archive-modal-content">
+                <img id="am-poster" class="archive-modal-poster" src="" alt="">
+                <div class="archive-modal-info" style="padding: 32px 32px 32px 0;">
+                    <h2 id="am-title" style="font-size: 2rem; margin-bottom: 4px;">Название</h2>
+                    <div id="am-genres" style="color: var(--rust); font-weight: 800; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 16px;"></div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div id="am-score" style="font-family: 'Alfa Slab One'; font-size: 3rem; line-height: 1; color: var(--gold);">8.5</div>
+                        <div id="am-date" style="font-weight: 700; color: var(--muted); font-size: 0.9rem;">01.01.2025</div>
+                    </div>
+
+                    <div class="archive-modal-stats">
+                        <div><span>Сценарий</span> <span id="am-script">-</span></div>
+                        <div><span>Актеры</span> <span id="am-actors">-</span></div>
+                        <div><span>Режиссура</span> <span id="am-directing">-</span></div>
+                        <div><span>Персонажи</span> <span id="am-chars">-</span></div>
+                        <div><span>Идея</span> <span id="am-idea">-</span></div>
+                        <div><span>Атмосфера</span> <span id="am-atmosphere">-</span></div>
+                        <div><span>Впечатление</span> <span id="am-impression">-</span></div>
+                    </div>
+
+                    <div id="am-review" class="archive-modal-review"></div>
+
+                    <button id="am-trailer-btn" class="btn-retro pine" style="width: 100%;">▶ ТРЕЙЛЕР</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка трейлера -->
+    <div id="trailer-modal" class="modal-overlay hidden">
+        <div class="trailer-box">
+            <button id="close-trailer" class="clear-btn" style="top: -15px; right: -15px; z-index: 20;">✕</button>
+            <iframe id="trailer-iframe" width="100%" height="100%" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script src="../assets/js/snow.js"></script>
+    <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/list.js"></script>
+</body>
+</html>
