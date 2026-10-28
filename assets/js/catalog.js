@@ -84,16 +84,13 @@ function renderCatalogCard(m) {
     const title = m.title || m.name;
     const mediaType = m.media_type || (currentFilter === 'movie' ? 'movie' : 'tv');
     const posterUrl = `https://image.tmdb.org/t/p/w300${m.poster_path}`;
-    const rating = m.vote_average ? m.vote_average.toFixed(1) : '?';
     const genres = m.genre_ids ? m.genre_ids.map(id => GENRE_MAP[id]).filter(Boolean).slice(0, 2).join(', ') : 'Жанр неизвестен';
-    let colorClass = rating >= 8 ? 'color-green' : rating >= 6 ? 'color-lime' : rating < 5 ? 'color-red' : 'color-yellow';
 
     const card = document.createElement('div');
     card.className = 'catalog-card';
     card.innerHTML = `
         <div class="cat-poster-wrapper">
             <img src="${posterUrl}" class="cat-poster" loading="lazy" alt="${title}">
-            <div class="cat-rating ${colorClass}">${rating}</div>
         </div>
         <div class="cat-info"><div class="cat-title" title="${title}">${title}</div><div class="cat-genres">${genres}</div></div>
     `;
@@ -163,34 +160,11 @@ async function openDetailModal(id, mediaType) {
         document.getElementById('detail-play-btn').onclick = () => playTrailer(id, mediaType);
         document.getElementById('detail-add-btn').onclick = () => addToRoulette(title);
         
-        // КНОПКА СМОТРЕТЬ (с точным определением аниме)
-        document.getElementById('detail-watch-btn').onclick = async () => {
-            const originalTitle = data.original_title || data.original_name || title;
-            const imdbId = data.imdb_id || '';
-            const year = (data.release_date || data.first_air_date || '').split('-')[0];
-            
-            // Более точное определение аниме (по оригинальному языку или специфичным жанрам)
+        // КНОПКА СМОТРЕТЬ (передаем флаг isAnime)
+        document.getElementById('detail-watch-btn').onclick = () => {
+            const imdbId = data.imdb_id || data.external_ids?.imdb_id || '';
             const isAnime = data.original_language === 'ja' || (data.genres && data.genres.some(g => g.id === 16));
-            
-            let kodikType = 'movie';
-            if (mediaType === 'tv') {
-                kodikType = isAnime ? 'anime-serial' : 'serial';
-            } else if (mediaType === 'movie') {
-                kodikType = isAnime ? 'anime-movie' : 'movie';
-            }
-
-            let shikimoriId = '';
-            if (isAnime) {
-                try {
-                    const shikiRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(originalTitle || title)}&limit=1`);
-                    const shikiData = await shikiRes.json();
-                    if (shikiData && shikiData.length > 0) {
-                        shikimoriId = shikiData[0].id;
-                    }
-                } catch (e) { console.warn("Не удалось получить Shikimori ID", e); }
-            }
-
-            window.location.href = `watch.html?title=${encodeURIComponent(title)}&original=${encodeURIComponent(originalTitle)}&imdb=${imdbId}&year=${year}&type=${kodikType}&shikimori=${shikimoriId}`;
+            window.location.href = `watch.html?id=${id}&imdb=${imdbId}&type=${mediaType}&title=${encodeURIComponent(title)}&isAnime=${isAnime}`;
         };
     } catch (e) { 
         if (titleEl) titleEl.textContent = 'Ошибка загрузки'; 

@@ -29,8 +29,6 @@ const previewNoPoster = document.getElementById('preview-no-poster');
 const previewOverview = document.getElementById('preview-overview');
 const typeSelected = document.getElementById('media-type-selected');
 const typeOptions = document.querySelectorAll('#media-type-options .sort-opt');
-const tmdbCompare = document.getElementById('tmdb-compare');
-const tmdbScoreDisplay = document.getElementById('tmdb-score');
 
 let searchTimer, abortController;
 
@@ -88,9 +86,6 @@ function showSuggestions(movies) {
             document.getElementById('preview-genres').textContent = selectedGenres || 'Жанр не указан';
             previewOverview.textContent = m.overview || 'Описание отсутствует...';
             
-            tmdbScoreDisplay.textContent = tmdbRating.toFixed(1);
-            tmdbCompare.classList.remove('hidden');
-
             previewBox.classList.remove('hidden'); document.getElementById('search-wrapper').style.display = 'none'; suggestionsBox.style.display = 'none';
         });
         suggestionsBox.appendChild(div);
@@ -100,7 +95,6 @@ function showSuggestions(movies) {
 document.getElementById('clear-preview').addEventListener('click', () => {
     titleInput.value = ''; selectedPoster = ''; selectedGenres = ''; tmdbRating = 0;
     previewBox.classList.add('hidden'); document.getElementById('search-wrapper').style.display = 'block'; titleInput.focus();
-    tmdbCompare.classList.add('hidden');
 });
 
 const getVal = (id) => parseFloat(document.getElementById(id).value);
@@ -205,3 +199,18 @@ document.getElementById('save-btn').onclick = async () => {
         setTimeout(() => { window.location.href = 'list.html'; }, 800);
     } catch (e) { console.error(e); showToast('Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
 };
+
+// ==========================================
+// АВТОЗАПОЛНЕНИЕ ПРИ ПЕРЕХОДЕ С ПЛЕЕРА
+// ==========================================
+const pageUrlParams = new URLSearchParams(window.location.search);
+const prefillTitle = pageUrlParams.get('title');
+
+if (prefillTitle) {
+    titleInput.value = prefillTitle;
+    // Триггерим событие 'input', чтобы сработал поиск и выпали подсказки
+    titleInput.dispatchEvent(new Event('input'));
+    
+    // Убираем параметр из URL, чтобы при обновлении страницы не искало заново
+    window.history.replaceState({}, document.title, window.location.pathname);
+}

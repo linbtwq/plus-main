@@ -3,140 +3,200 @@ import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 onAuthStateChanged(auth, (user) => { if (!user) window.location.href = '../index.html'; });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
-const KODIK_TOKEN = '447d179e875efe44217f20d1ee2146be'; 
-const KODIK_API = 'https://kodik-api.com';
-const MY_PROXY = 'https://white-thunder-adab.lilchwistieyay.workers.dev';
+const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4'; 
 
-// Умный запрос, который перебирает прокси, если один заблокирован
-function fetchKodik(targetUrl) {
-    return new Promise((resolve, reject) => {
-        const encodedUrl = encodeURIComponent(targetUrl);
-        
-        // Список прокси (твой воркер, резерв 1, резерв 2)
-        const proxies = [
-            `${MY_PROXY}?url=${encodedUrl}`,
-            `https://api.allorigins.win/raw?url=${encodedUrl}`,
-            `https://corsproxy.io/?${encodedUrl}`
-        ];
-        
-        let proxyIndex = 0;
+const titleEl = document.getElementById('movie-title');
+const playerContainer = document.getElementById('kodik-player');
+const controlsPanel = document.getElementById('player-controls-panel');
+const translationContainer = document.getElementById('translation-container');
+const translationGrid = document.getElementById('translation-grid');
 
-        function tryNextProxy() {
-            if (proxyIndex >= proxies.length) {
-                return reject(new Error("Все прокси заблокированы (AdBlock/Антивирус). Отключите их для localhost."));
-            }
+const sourceSelect = document.getElementById('source-select');
+const seasonSelect = document.getElementById('season-select');
+const episodeSelect = document.getElementById('episode-select');
+const seasonGroup = document.getElementById('season-group');
+const episodeGroup = document.getElementById('episode-group');
 
-            const proxyUrl = proxies[proxyIndex++];
-            console.log(`[Кодик] Пробуем прокси ${proxyIndex}/${proxies.length}...`);
+const urlParams = new URLSearchParams(window.location.search);
+const tmdbId = urlParams.get('id');
+const imdbId = urlParams.get('imdb') || '';
+const mediaType = urlParams.get('type');
+const movieTitle = urlParams.get('title');
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', proxyUrl, true);
-            xhr.timeout = 5000; // Ждем 5 секунд
+let currentSource = window.innerWidth <= 768 ? 'vidlink' : 'vidsrc';
+let currentSeason = 1;
+let currentEpisode = 1;
+let currentLang = 'ru';
 
-            xhr.onload = function() {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        let text = xhr.responseText;
-                        // Особенность allorigins
-                        if (proxyUrl.includes('allorigins')) {
-                            const wrapper = JSON.parse(text);
-                            text = wrapper.contents;
-                        }
-                        resolve(JSON.parse(text));
-                    } catch (e) {
-                        reject(new Error("Ошибка чтения ответа"));
-                    }
-                } else {
-                    console.warn(`Прокси ${proxyIndex} ответил: ${xhr.status}`);
-                    tryNextProxy(); // Пробуем следующий при ошибке сервера
-                }
-            };
+const TRANSLATIONS = [
+    { name: 'Русский дубляж', lang: 'ru', flag: '🇷🇺' },
+    { name: 'Украинский дубляж', lang: 'uk', flag: '🇺🇦' },
+    { name: 'Оригинал (+суб)', lang: 'en', flag: '🇬🇧' }
+];
 
-            xhr.onerror = function() {
-                console.warn(`Прокси ${proxyIndex} заблокирован (сетевая ошибка).`);
-                tryNextProxy(); // Пробуем следующий
-            };
-
-            xhr.ontimeout = function() {
-                console.warn(`Прокси ${proxyIndex} завис (таймаут).`);
-                tryNextProxy(); // Пробуем следующий
-            };
-
-            xhr.send();
-        }
-
-        tryNextProxy();
+function initTranslations() {
+    if (!translationGrid) return;
+    translationContainer.style.display = 'block';
+    
+    TRANSLATIONS.forEach((tr, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'translation-btn' + (index === 0 ? ' active' : '');
+        btn.innerHTML = `
+            <span class="flag">${tr.flag}</span>
+            <span class="name">${tr.name}</span>
+            <svg class="ic check" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;"><use href="#i-check"/></svg>
+        `;
+        btn.onclick = () => {
+            document.querySelectorAll('.translation-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentLang = tr.lang;
+            updatePlayer();
+        };
+        translationGrid.appendChild(btn);
     });
 }
 
-const video = document.getElementById('main-video');
-const wrapper = document.querySelector('.player-wrapper');
-const loader = document.getElementById('video-loader');
-const titleEl = document.getElementById('movie-title');
+// ЗАГРУЗКА СЕЗОНОВ ИЗ TMDB
+async function initSelectors() {
+    if (mediaType !== 'tv') return;
 
-// ==========================================
-// ПОИСК И ВОСПРОИЗВЕДЕНИЕ
-// ==========================================
-async function searchAndPlay(title, originalTitle, imdbId, year, type, shikimoriId) {
-    titleEl.textContent = "Поиск фильма...";
-    loader.classList.remove('hidden');
+    seasonGroup.style.display = 'flex';
+    episodeGroup.style.display = 'flex';
 
     try {
-        let url = `${KODIK_API}/get-player?token=${KODIK_TOKEN}`;
-        
-        if (shikimoriId) url += `&shikimoriID=${shikimoriId}`;
-        else if (imdbId && imdbId !== 'undefined' && imdbId !== 'null' && imdbId.trim() !== '') url += `&imdbID=${imdbId}`;
-        else {
-            url += `&title=${encodeURIComponent(title)}`;
-            if (originalTitle) url += `&title_orig=${encodeURIComponent(originalTitle)}`;
-            if (year) url += `&year=${year}`;
-        }
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=ru-RU`);
+        const data = await res.json();
 
-        url += `&types=${type || 'movie'}`;
+        if (data.seasons && data.seasons.length > 0) {
+            const validSeasons = data.seasons.filter(s => s.season_number > 0).sort((a, b) => a.season_number - b.season_number);
+            
+            seasonSelect.innerHTML = '';
+            validSeasons.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.season_number;
+                opt.textContent = `Сезон ${s.season_number}`;
+                seasonSelect.appendChild(opt);
+            });
 
-        let data = await fetchKodik(url);
-
-        // Если не нашли по ID, пробуем по названию (без ID)
-        if ((!data.link || data.found === false) && (shikimoriId || imdbId)) {
-            let fallbackUrl = `${KODIK_API}/get-player?token=${KODIK_TOKEN}&title=${encodeURIComponent(title)}&types=${type || 'movie'}`;
-            if (originalTitle) fallbackUrl += `&title_orig=${encodeURIComponent(originalTitle)}`;
-            if (year) fallbackUrl += `&year=${year}`;
-            data = await fetchKodik(fallbackUrl);
-        }
-
-        if (data && data.link && data.allowed === 1) {
-            let playerLink = data.link;
-            if (playerLink.startsWith('//')) playerLink = 'https:' + playerLink;
-            wrapper.innerHTML = `<iframe src="${playerLink}" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay *; fullscreen *"></iframe>`;
-            loader.classList.add('hidden');
-            titleEl.textContent = title;
+            if (validSeasons.length > 0) {
+                currentSeason = validSeasons[0].season_number;
+                await loadEpisodes(currentSeason);
+            }
         } else {
-            throw new Error("В базе Кодика нет этого фильма (или он платный).");
+            seasonSelect.innerHTML = '<option value="1">Сезон 1</option>';
+            await loadEpisodes(1);
         }
-    } catch (err) {
-        console.error("ОШИБКА:", err);
-        titleEl.textContent = "Ошибка 😢";
-        loader.classList.add('hidden');
-        wrapper.innerHTML = `<div style="position:absolute; inset:0; background:rgba(11,22,34,0.9); display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:99; padding: 20px; text-align: center;">
-            <h2 style="color:var(--rust); font-family:'Playfair Display';">Увы...</h2>
-            <p style="color:var(--paper); margin-top:10px; font-size: 0.9rem;">${err.message}</p>
-            <button onclick="window.history.back()" class="btn-retro" style="margin-top:20px;">Вернуться назад</button>
-        </div>`;
+    } catch (e) {
+        console.error("Ошибка загрузки сезонов:", e);
+        seasonSelect.innerHTML = '<option value="1">Сезон 1</option>';
+        await loadEpisodes(1);
     }
 }
 
-// Запуск при открытии страницы
-const urlParams = new URLSearchParams(window.location.search);
-const movieTitle = urlParams.get('title');
-const movieOriginal = urlParams.get('original');
-const movieImdb = urlParams.get('imdb');
-const movieYear = urlParams.get('year');
-const movieType = urlParams.get('type');
-const movieShikimori = urlParams.get('shikimori');
+// ЗАГРУЗКА СЕРИЙ ДЛЯ СЕЗОНА
+async function loadEpisodes(seasonNum) {
+    episodeSelect.innerHTML = '<option>Загрузка...</option>';
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNum}?api_key=${TMDB_API_KEY}&language=ru-RU`);
+        const data = await res.json();
 
-if (movieTitle) {
-    searchAndPlay(movieTitle, movieOriginal, movieImdb, movieYear, movieType, movieShikimori);
+        episodeSelect.innerHTML = '';
+        
+        if (data.episodes && data.episodes.length > 0) {
+            const sortedEpisodes = data.episodes.sort((a, b) => a.episode_number - b.episode_number);
+            
+            sortedEpisodes.forEach(ep => {
+                const opt = document.createElement('option');
+                opt.value = ep.episode_number;
+                opt.textContent = `Серия ${ep.episode_number}`;
+                episodeSelect.appendChild(opt);
+            });
+            currentEpisode = sortedEpisodes[0].episode_number;
+        } else {
+            episodeSelect.innerHTML = '<option value="1">Серия 1</option>';
+            currentEpisode = 1;
+        }
+        updatePlayer(); 
+    } catch (e) {
+        console.error("Ошибка загрузки серий:", e);
+        episodeSelect.innerHTML = '<option value="1">Серия 1</option>';
+        currentEpisode = 1;
+        updatePlayer();
+    }
+}
+
+function updatePlayer() {
+    if (!tmdbId) return;
+    
+    const isTv = mediaType === 'tv';
+    const s = currentSeason;
+    const e = currentEpisode;
+    const lang = currentLang;
+    let url = '';
+
+    switch (currentSource) {
+        case 'vidsrc':
+            url = isTv 
+                ? `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${s}&episode=${e}&lang=${lang}` 
+                : `https://vidsrc.me/embed/movie?tmdb=${tmdbId}&lang=${lang}`;
+            break;
+        case '2embed':
+            url = isTv 
+                ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${s}&e=${e}&lang=${lang}` 
+                : `https://www.2embed.cc/embed/${tmdbId}?lang=${lang}`;
+            break;
+        case 'superembed':
+            const embedId = imdbId || tmdbId;
+            url = isTv 
+                ? `https://multiembed.mov/?video_id=${embedId}&tmdb=1&s=${s}&e=${e}&lang=${lang}`
+                : `https://multiembed.mov/?video_id=${embedId}&tmdb=1&lang=${lang}`;
+            break;
+        case 'vidlink':
+            url = isTv 
+                ? `https://vidlink.pro/tv/${tmdbId}/${s}/${e}?sub=${lang}`
+                : `https://vidlink.pro/movie/${tmdbId}?sub=${lang}`;
+            break;
+    }
+
+        if (playerContainer) {
+        playerContainer.innerHTML = `
+            <iframe 
+                src="${url}" 
+                width="100%" 
+                height="100%" 
+                frameborder="0" 
+                allowfullscreen 
+                playsinline 
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: auto; touch-action: manipulation; z-index: 10;">
+            </iframe>
+        `;
+    }
+}
+
+if (sourceSelect) sourceSelect.addEventListener('change', (e) => { currentSource = e.target.value; updatePlayer(); });
+if (seasonSelect) seasonSelect.addEventListener('change', async (e) => { currentSeason = Number(e.target.value); await loadEpisodes(currentSeason); });
+if (episodeSelect) episodeSelect.addEventListener('change', (e) => { currentEpisode = Number(e.target.value); updatePlayer(); });
+
+if (tmdbId) {
+    if (titleEl) titleEl.textContent = movieTitle;
+    if (controlsPanel) controlsPanel.style.display = 'flex';
+    
+    initTranslations();
+    
+    if (mediaType === 'tv') {
+        initSelectors(); 
+    } else {
+        updatePlayer(); 
+    }
+
+    // Кнопка "Оценить"
+    const rateBtn = document.getElementById('watch-rate-btn');
+    if (rateBtn) {
+        rateBtn.addEventListener('click', () => {
+            window.location.href = `rate.html?title=${encodeURIComponent(movieTitle)}`;
+        });
+    }
 } else {
-    video.src = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
-    titleEl.textContent = "Тестовое видео";
+    if (titleEl) titleEl.textContent = "Ошибка: Не передано ID";
 }
