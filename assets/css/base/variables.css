@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  /* ===== ПАЛИТРА «ВИШНЯ ВО ЛЬДУ» (цвета сняты с картинки пипеткой) ===== */
+  --c-plum:   #2A0111;   /* тёмная слива  */
+  --c-cherry: #8B0333;   /* вишня         */
+  --c-ice:    #E9F0F8;   /* лёд           */
+  --c-sky:    #78B6DB;   /* небо подо льдом */
+  --c-navy:   #132434;   /* глубокая ночь */
+
+  /* ФОНЫ */
+  --bg-dark: #132434;
+  --bg-darker: #0B1622;
+  --bg-gradient: radial-gradient(ellipse at 50% -10%, #24476A 0%, #132434 62%);
+
+  /* ПОВЕРХНОСТИ (слива) */
+  --surface: #2A0111;
+  --surface-light: #3E0A20;
+  --surface-dark: #1A000B;
+
+  /* ТЕКСТ (лёд) */
+  --paper: #E9F0F8;
+  --paper-warm: #78B6DB;
+  --paper-dark: #A9C4DA;
+  --snow: #FFFFFF;
+
+  /* РАМКИ И ТЕНИ */
+  --ink: #0B1622;
+  --ink-soft: #2A0111;
+  --ink-mid: #86A9C5;
+  --muted: #8DBCDC;
+  --border: rgba(120, 182, 219, 0.22);
+
+  /* АКЦЕНТЫ */
+  --rust: #8B0333;                 /* фоны кнопок и плашек */
+  --rust-text: #FF5C8D;            /* вишня для ТЕКСТА (читается на сливовом) */
+  --accent-hover: #B8104B;
+  --gold: #78B6DB;
+  --gold-glow: rgba(120, 182, 219, 0.45);
+  --cherry-glow: rgba(184, 16, 75, 0.45);
+  --pine: #1F4568;
+
+  /* ОЦЕНКИ (от вишни до ледяной мяты) */
+  --c-red: #E0245E;
+  --c-orange: #F08A6A;
+  --c-yellow: #F3CF8A;
+  --c-lime: #9ED8D0;
+  --c-green: #6FD6B0;
+  --c-gold: #E9F0F8;
+
+  /* РАЗМЕРЫ */
+  --r-sm: 6px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px;
+  --bw: 2px; --bw-thick: 3px;
+  --sh-hard: 6px 6px 0 var(--ink);
+}

@@ -60,12 +60,31 @@ function render(movies) {
             <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div><div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div></div>
         `;
         
-        const frame = card.querySelector('.card-frame');
+                const frame = card.querySelector('.card-frame');
+        let rect = null;
+        let rafId = null;
+
+        card.addEventListener('mouseenter', () => {
+            rect = frame.getBoundingClientRect();
+        });
+
         card.addEventListener('mousemove', (e) => {
-            if (!frame) return;
-            const rect = frame.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
-            frame.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -10}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 10}deg) scale3d(1.02, 1.02, 1.02)`;
-            frame.style.setProperty('--mouse-x', `${(x / rect.width) * 100}%`); frame.style.setProperty('--mouse-y', `${(y / rect.height) * 100}%`);
+            if (!frame || !rect) return;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                frame.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -10}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 10}deg) scale3d(1.02, 1.02, 1.02)`;
+                frame.style.setProperty('--mouse-x', `${(x / rect.width) * 100}%`); 
+                frame.style.setProperty('--mouse-y', `${(y / rect.height) * 100}%`);
+            });
+        });
+
+        card.addEventListener('mouseleave', () => { 
+            rect = null;
+            if (rafId) cancelAnimationFrame(rafId);
+            if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; 
         });
         card.addEventListener('mouseleave', () => { if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; });
         
@@ -95,7 +114,7 @@ function openArchiveModal(m) {
     if (m.review) { reviewBox.textContent = `"${m.review}"`; reviewBox.classList.remove('hidden'); } 
     else { reviewBox.classList.add('hidden'); }
 
-    // Кнопка трейлера в архиве
+    // Кнопка трейлера
     document.getElementById('am-trailer-btn').onclick = async () => {
         try {
             const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=ru-RU`);
@@ -116,6 +135,11 @@ function openArchiveModal(m) {
                 } else alert('Трейлер не найден');
             } else alert('Фильм не найден на TMDB');
         } catch(e) { alert('Ошибка'); }
+    };
+    
+    // НОВАЯ КНОПКА СМОТРЕТЬ
+    document.getElementById('am-watch-btn').onclick = () => {
+        window.location.href = `watch.html?title=${encodeURIComponent(m.title)}`;
     };
     
     modal.classList.remove('hidden');

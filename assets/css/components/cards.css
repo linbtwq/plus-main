@@ -1,0 +1,38 @@
+.movie-card { display: flex; flex-direction: column; position: relative; cursor: pointer; transition: transform 0.3s; }
+.movie-card:hover { transform: translateY(-8px); z-index: 10; }
+.card-frame { position: relative; aspect-ratio: 2/3; border-radius: var(--r-md); overflow: hidden; background: #000; border: var(--bw-thick) solid var(--ink); box-shadow: 8px 8px 0 rgba(0,0,0,0.5); transition: transform 0.1s ease-out, box-shadow 0.3s, border-color 0.3s; transform-style: preserve-3d; }
+.movie-card:hover .card-frame { box-shadow: 12px 12px 0 rgba(0,0,0,0.7), 0 0 30px rgba(111, 171, 209, 0.3); border-color: var(--gold); }
+.card-frame::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(226, 232, 240, 0.2) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s; z-index: 3; pointer-events: none; mix-blend-mode: overlay; }
+.movie-card:hover .card-frame::after { opacity: 1; }
+.card-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.card-score-pill { position: absolute; top: 16px; right: 16px; z-index: 10; font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 800; background: var(--bg-dark); color: var(--paper); padding: 6px 12px; border-radius: 8px; border: var(--bw-thick) solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.card-del-btn { position: absolute; bottom: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); border: 2px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; opacity: 0; cursor: pointer; transition: 0.2s; z-index: 10; font-weight: 800; font-size: 1.2rem; }
+.movie-card:hover .card-del-btn { opacity: 1; }
+.card-del-btn:hover { background: var(--rust); border-color: var(--rust); transform: scale(1.1); }
+
+.movie-card.masterpiece .card-frame { border-color: var(--gold); box-shadow: 8px 8px 0 rgba(0,0,0,0.5), 0 0 40px var(--gold-glow); }
+.movie-card.masterpiece .card-score-pill { background: var(--gold); color: var(--ink); border-color: var(--ink); }
+.movie-card.masterpiece .card-frame::before { content: '👑'; position: absolute; top: 16px; left: 16px; font-size: 2rem; z-index: 10; animation: floatCrown 2s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px var(--gold)); }
+
+.card-caption { padding: 16px 4px 0; }
+.card-headline { font-size: 1.2rem; font-weight: 800; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.card-sub { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-sub span:first-child { color: var(--rust); }
+
+.catalog-card { display: flex; flex-direction: column; gap: 12px; transition: transform 0.3s; cursor: pointer; }
+.catalog-card:hover { transform: translateY(-8px); z-index: 10; }
+.cat-poster-wrapper { position: relative; aspect-ratio: 2/3; border: var(--bw-thick) solid var(--ink); border-radius: var(--r-md); overflow: hidden; box-shadow: 8px 8px 0 rgba(0,0,0,0.5); transition: box-shadow 0.3s, border-color 0.3s; background: #000; }
+.catalog-card:hover .cat-poster-wrapper { box-shadow: 12px 12px 0 rgba(0,0,0,0.7), 0 0 30px rgba(111, 171, 209, 0.3); border-color: var(--gold); }
+.cat-poster { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cat-rating { position: absolute; top: 12px; right: 12px; background: var(--bg-dark); color: var(--paper); backdrop-filter: blur(4px); padding: 4px 10px; border-radius: 6px; font-family: 'Space Mono', monospace; font-weight: 800; font-size: 1rem; border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.cat-info { padding: 4px; }
+.cat-title { font-weight: 800; font-size: 1.1rem; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.cat-genres { font-size: 0.8rem; font-weight: 800; color: var(--gold); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.05em; }
+
+.color-red { color: var(--c-red); }
+.color-orange { color: var(--c-orange); }
+.color-yellow { color: var(--c-yellow); }
+.color-lime { color: var(--c-lime); }
+.color-green { color: var(--c-green); }
+.color-gold { color: var(--c-gold); }

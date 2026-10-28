@@ -1,0 +1,61 @@
+/* ================= ПЛЕЕР ================= */
+.watch-wrapper { max-width: 1200px; margin: 0 auto; padding: 40px 24px 120px; z-index: 5; position: relative; }
+.movie-info-head { margin-bottom: 24px; text-align: center; }
+.movie-info-head h1 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 3rem; color: var(--paper); margin-bottom: 8px; text-shadow: 2px 2px 0 var(--ink); }
+.movie-info-head p { color: var(--muted); font-weight: 600; font-size: 1.1rem; }
+
+/* Контейнер плеера */
+.player-wrapper {
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border: var(--bw-thick) solid var(--ink);
+    border-radius: var(--r-xl); overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(120,182,219,0.15);
+}
+.player-wrapper video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Прячем стандартные контролы браузера */
+.player-wrapper video::-webkit-media-controls { display: none !important; }
+
+/* Кастомные контролы */
+.player-controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 30px 20px 20px; display: flex; flex-direction: column; gap: 10px;
+    background: linear-gradient(to top, rgba(11,22,34,0.95) 0%, rgba(11,22,34,0.6) 60%, transparent 100%);
+    opacity: 0; transition: opacity 0.3s ease;
+}
+.player-wrapper:hover .player-controls, .player-wrapper.paused .player-controls { opacity: 1; }
+
+/* Прогресс-бар */
+.progress-container { width: 100%; height: 16px; display: flex; align-items: center; cursor: pointer; position: relative; }
+.progress-bar { width: 100%; height: 6px; background: rgba(233,240,248,0.2); border-radius: 99px; position: relative; overflow: hidden; transition: height 0.15s; }
+.progress-container:hover .progress-bar { height: 10px; }
+.progress-filled { height: 100%; width: 0%; background: linear-gradient(90deg, #B8104B, #FF5C8D); border-radius: 99px; position: relative; }
+
+/* Нижний ряд контролов (кнопки и время) */
+.controls-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.controls-left, .controls-right { display: flex; align-items: center; gap: 16px; }
+
+/* Кнопки */
+.p-btn { background: transparent; border: none; color: var(--c-ice); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 8px; border-radius: 8px; transition: 0.2s; }
+.p-btn:hover { color: #fff; background: rgba(255,255,255,0.1); transform: scale(1.05); }
+.p-btn .ic { width: 24px; height: 24px; }
+.p-btn.play-btn .ic { width: 32px; height: 32px; fill: currentColor; }
+
+/* Время */
+.time-display { font-family: 'Space Mono', monospace; font-size: 0.9rem; color: var(--c-ice); font-weight: 600; user-select: none; }
+
+/* Громкость */
+.volume-container { display: flex; align-items: center; gap: 8px; }
+.volume-slider { width: 80px; height: 4px; background: rgba(233,240,248,0.2); border-radius: 99px; appearance: none; outline: none; cursor: pointer; }
+.volume-slider::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--c-sky); box-shadow: 0 0 10px var(--gold-glow); }
+
+/* Оверлей загрузки */
+.video-loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(11,22,34,0.5); z-index: 10; }
+.video-loader.hidden { display: none; }
+.video-loader .ic { width: 48px; height: 48px; color: var(--c-cherry); animation: icSpin 1s linear infinite; }
+
+/* Центральная кнопка Play */
+.big-play-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: rgba(11,22,34,0.7); border: 2px solid var(--c-sky); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; backdrop-filter: blur(8px); z-index: 5; }
+.big-play-btn:hover { background: var(--rust); border-color: var(--c-ice); transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 30px var(--cherry-glow); }
+.big-play-btn .ic { width: 36px; height: 36px; fill: #fff; margin-left: 6px; }
+.player-wrapper.playing .big-play-btn { opacity: 0; pointer-events: none; }

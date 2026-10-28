@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plus.plus | Просмотр</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <!-- Базовые иконки -->
+    <symbol id="i-popcorn" viewBox="0 0 24 24"><path d="M18 8a2 2 0 0 0 0-4 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0 0 4" /> <path d="M10 22 9 8" /> <path d="m14 22 1-14" /> <path d="M20 8c.5 0 .9.4.8 1l-2.6 12c-.1.5-.7 1-1.2 1H7c-.6 0-1.1-.4-1.2-1L3.2 9c-.1-.6.3-1 .8-1Z" /></symbol>
+    <symbol id="i-message-square-heart" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /> <path d="M7.5 9.5c0 .687.265 1.383.697 1.844l3.009 3.264a1.14 1.14 0 0 0 .407.314 1 1 0 0 0 .783-.004 1.14 1.14 0 0 0 .398-.31l3.008-3.264A2.77 2.77 0 0 0 16.5 9.5 2.5 2.5 0 0 0 12 8a2.5 2.5 0 0 0-4.5 1.5" /></symbol>
+    <symbol id="i-clapperboard" viewBox="0 0 24 24"><path d="m12.296 3.464 3.02 3.956" /> <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z" /> <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /> <path d="m6.18 5.276 3.1 3.899" /></symbol>
+    <symbol id="i-dices" viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" /> <path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" /> <path d="M6 18h.01" /> <path d="M10 14h.01" /> <path d="M15 6h.01" /> <path d="M18 9h.01" /></symbol>
+    <symbol id="i-log-out" viewBox="0 0 24 24"><path d="m16 17 5-5-5-5" /> <path d="M21 12H9" /> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></symbol>
+    
+    <!-- Иконки для плеера -->
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1" /> <rect x="6" y="4" width="4" height="16" rx="1" /></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /> <path d="M16 9a5 5 0 0 1 0 6" /> <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></symbol>
+    <symbol id="i-volume-x" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /> <line x1="22" x2="16" y1="9" y2="15" /> <line x1="16" x2="22" y1="9" y2="15" /></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol>
+    <symbol id="i-loader-circle" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></symbol>
+</defs></svg>
+
+    <canvas id="snow-canvas"></canvas>
+    <header class="top-deck">
+        <div class="deck-brand">
+            <button class="menu-trigger" id="burger-btn" aria-label="Меню" aria-controls="sidebar" aria-expanded="false"><span></span><span></span></button>
+            <a href="../index.html" class="brand-text">plus<span>.</span>plus</a>
+        </div>
+        <div class="deck-user"><span>Просмотр 🎬</span></div>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="side-logo">plus<span>.</span>plus</div>
+        <nav class="side-nav">
+            <a href="catalog.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-popcorn"/></svg></span> Каталог</a>
+            <a href="rate.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></span> Оценить</a>
+            <a href="list.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
+            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Слот</a>
+        </nav>
+        <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
+    </aside>
+
+    <main class="watch-wrapper">
+        <div class="movie-info-head">
+            <h1 id="movie-title">Поиск фильма...</h1>
+            <p>Приятного просмотра в вашей личной киновселенной</p>
+        </div>
+
+        <div class="player-wrapper paused" id="player-wrapper">
+            <!-- Оверлей загрузки -->
+            <div class="video-loader" id="video-loader">
+                <svg class="ic" aria-hidden="true"><use href="#i-loader-circle"/></svg>
+            </div>
+
+            <!-- Само видео -->
+            <video id="main-video" playsinline></video>
+
+            <!-- Центральная кнопка Play -->
+            <button class="big-play-btn" id="big-play-btn">
+                <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>
+            </button>
+
+            <!-- Кастомные контролы -->
+            <div class="player-controls">
+                <div class="progress-container" id="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-filled" id="progress-filled"></div>
+                    </div>
+                </div>
+                <div class="controls-row">
+                    <div class="controls-left">
+                        <button class="p-btn play-btn" id="play-btn">
+                            <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>
+                        </button>
+                        <div class="volume-container">
+                            <button class="p-btn" id="mute-btn">
+                                <svg class="ic" aria-hidden="true"><use href="#i-volume"/></svg>
+                            </button>
+                            <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="1">
+                        </div>
+                        <div class="time-display" id="time-display">00:00 / 00:00</div>
+                    </div>
+                    <div class="controls-right">
+                        <button class="p-btn" id="fullscreen-btn">
+                            <svg class="ic" aria-hidden="true"><use href="#i-maximize"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Библиотека для HLS-видео (нужна для Kodik) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <script src="../assets/js/snow.js"></script>
+    <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/watch.js"></script>
+</body>
+</html>

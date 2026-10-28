@@ -1,0 +1,294 @@
+/* ==========================================================
+   ТЕМА «ВИШНЯ ВО ЛЬДУ» — подключается ПОСЛЕДНЕЙ в style.css
+   ========================================================== */
+
+::selection { background: var(--c-cherry); color: #fff; }
+:focus-visible { outline: 2px solid var(--c-sky); outline-offset: 3px; }
+
+/* --- Фон: ледяные грани + дрейфующее северное сияние (небо + вишня) --- */
+body {
+  background-color: #0B1622;
+  background-image:
+    repeating-linear-gradient(60deg,  rgba(190,226,248,.028) 0 1px, transparent 1px 110px),
+    repeating-linear-gradient(-60deg, rgba(190,226,248,.028) 0 1px, transparent 1px 110px),
+    radial-gradient(120% 70% at 50% -15%, #24507C 0%, transparent 62%),
+    linear-gradient(180deg, #132434 0%, #0E1B2A 55%, #16070E 100%);
+  background-attachment: fixed;
+}
+body::before {
+  content: ''; position: fixed; inset: -25%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(36% 32% at 16% 20%, rgba(120,182,219,.34), transparent 70%),
+    radial-gradient(32% 28% at 84% 14%, rgba(139,3,51,.40),  transparent 70%),
+    radial-gradient(34% 30% at 72% 82%, rgba(120,182,219,.22), transparent 70%),
+    radial-gradient(38% 32% at 10% 88%, rgba(139,3,51,.30),  transparent 70%),
+    linear-gradient(115deg, transparent 36%, rgba(190,226,248,.09) 50%, transparent 64%);
+  animation: auroraDrift 42s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes auroraDrift {
+  from { transform: translate3d(-3%, -2%, 0) rotate(0deg) scale(1); }
+  to   { transform: translate3d(3%, 3%, 0) rotate(6deg) scale(1.08); }
+}
+
+/* --- Заголовки: ледяной градиент --- */
+.hero-title, .scoreboard-title, .catalog-header h1, .cinema-hero-content h1, .detail-title {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E9F0F8 45%, #78B6DB 130%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(3px 3px 0 rgba(5,10,18,.75));
+}
+.hero-title span { -webkit-text-fill-color: var(--rust-text); color: var(--rust-text); filter: drop-shadow(0 0 14px var(--cherry-glow)); }
+
+/* --- Вишнёвый цвет для текста (читаемость на сливовом) --- */
+.hero-tag, .brand-text span, .side-logo span, .menu-card::after, .card-sub span:first-child,
+.preview-genres, #am-genres, .tmdb-compare span,
+.m-val.gold-txt, .duration-group span, .sort-opt.active, .catalog-loader, #result-modal h2 {
+  color: var(--rust-text) !important;
+}
+.hero-tag { border-color: var(--rust-text); background: rgba(139,3,51,.15); box-shadow: 0 0 24px rgba(184,16,75,.25); }
+.m-val.gold-txt { text-shadow: 0 0 18px var(--cherry-glow); }
+.menu-card:hover::after { color: var(--c-sky) !important; }
+
+/* --- Стеклянные карточки: сливовое «стекло» + ледяная кромка --- */
+.hero-card, .user-header, .menu-card, .panel, .slot-machine, .sidebar, .modal-plate, .modal-box, .control-deck, .metric-card {
+  background: linear-gradient(160deg, rgba(62,10,32,.92) 0%, rgba(42,1,17,.96) 60%, rgba(26,0,11,.98) 100%);
+  box-shadow: 8px 8px 0 rgba(5,10,18,.75), inset 0 1px 0 rgba(233,240,248,.16), inset 0 0 0 1px rgba(120,182,219,.08);
+}
+.hero-card { box-shadow: 12px 12px 0 rgba(5,10,18,.75), 0 0 80px rgba(139,3,51,.25), inset 0 1px 0 rgba(233,240,248,.2); }
+.slot-machine { box-shadow: 12px 12px 0 rgba(5,10,18,.75), 0 0 80px rgba(120,182,219,.12), inset 0 1px 0 rgba(233,240,248,.16); }
+.sidebar { box-shadow: 10px 10px 0 rgba(5,10,18,.7), inset 0 1px 0 rgba(233,240,248,.16); }
+.metric-card { border-color: var(--border); }
+
+/* ледяной блик в углу карточек меню и приветствия */
+.menu-card::before, .hero-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(135deg, rgba(120,182,219,.16) 0%, transparent 38%);
+}
+.menu-card:hover {
+  box-shadow: 12px 12px 0 rgba(5,10,18,.85), 0 0 36px var(--gold-glow), inset 0 1px 0 rgba(233,240,248,.25);
+  border-color: var(--c-sky);
+}
+
+/* --- Верхняя панель и гирлянда --- */
+.top-deck { background: rgba(19,36,52,.78); border-bottom: 1px solid rgba(120,182,219,.18); }
+.top-deck::before {
+  background-image:
+    radial-gradient(circle, var(--c-cherry) 2px, transparent 3px),
+    radial-gradient(circle, var(--c-sky) 2px, transparent 3px),
+    radial-gradient(circle, var(--c-ice) 2px, transparent 3px);
+}
+.deck-search input { border-color: rgba(120,182,219,.25); background: rgba(233,240,248,.06); }
+.deck-user { background: linear-gradient(180deg, #FFFFFF, #E9F0F8); box-shadow: 4px 4px 0 var(--ink), 0 0 20px rgba(120,182,219,.25); }
+
+/* --- Кнопки --- */
+.btn-retro {
+  background: linear-gradient(180deg, #B8104B 0%, #8B0333 100%);
+  color: #fff;
+  box-shadow: var(--sh-hard), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.btn-retro:hover {
+  background: linear-gradient(180deg, #D01658 0%, #A00840 100%);
+  box-shadow: 8px 8px 0 var(--ink), 0 0 26px var(--cherry-glow), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.btn-retro.pine { background: linear-gradient(180deg, #2E6A99 0%, #1F4568 100%); }
+.btn-retro.pine:hover { background: linear-gradient(180deg, #3A80B6 0%, #26577F 100%); box-shadow: 8px 8px 0 var(--ink), 0 0 26px var(--gold-glow); }
+.btn-retro.gold { background: linear-gradient(180deg, #A9D3EC, #78B6DB); color: var(--ink); }
+.cat-btn.active, .cat-filter-btn.active, .rail-chip.active, .mode-btn.active, .side-link.active {
+  background: linear-gradient(180deg, #B8104B, #8B0333); color: #fff;
+}
+
+/* --- Постеры и карточки фильмов: ледяное свечение при наведении --- */
+.card-frame, .cat-poster-wrapper, .poster-frame, .detail-poster { box-shadow: 8px 8px 0 rgba(5,10,18,.75); }
+.movie-card:hover .card-frame, .catalog-card:hover .cat-poster-wrapper {
+  box-shadow: 12px 12px 0 rgba(5,10,18,.85), 0 0 36px var(--gold-glow);
+  border-color: var(--c-sky);
+}
+.card-score-pill, .cat-rating { background: rgba(11,22,34,.85); backdrop-filter: blur(6px); border-color: rgba(233,240,248,.25); }
+.movie-card.masterpiece .card-frame { border-color: var(--c-ice); box-shadow: 8px 8px 0 rgba(5,10,18,.75), 0 0 44px rgba(233,240,248,.35), 0 0 80px rgba(184,16,75,.25); }
+.movie-card.masterpiece .card-score-pill { background: linear-gradient(180deg, #FFFFFF, #CFE2F1); color: var(--ink); }
+
+.poster-overlay { background: linear-gradient(to top, rgba(26,0,11,.96) 0%, rgba(19,36,52,.75) 60%, transparent 100%); }
+.no-poster-bg { background: repeating-linear-gradient(45deg, #132434, #132434 10px, #2A0111 10px, #2A0111 20px); }
+
+/* --- Hero-баннер --- */
+.cinema-hero { box-shadow: 8px 8px 0 rgba(5,10,18,.75), 0 0 70px rgba(120,182,219,.14); }
+.cinema-hero-overlay {
+  background:
+    linear-gradient(to right, rgba(19,36,52,.96) 0%, rgba(19,36,52,.55) 55%, rgba(42,1,17,.18) 100%),
+    linear-gradient(to top, rgba(19,36,52,.98) 0%, transparent 60%);
+}
+.cinema-hero-content p { color: var(--paper); }
+
+/* --- Модалки --- */
+.modal-overlay { background: rgba(11,22,34,.88); }
+.detail-box { background: linear-gradient(160deg, #1B3350 0%, #132434 55%, #1A000B 140%); }
+.detail-overview { color: var(--paper-dark); }
+.archive-modal-stats, .preview-overview { background: rgba(11,22,34,.6); border-color: rgba(120,182,219,.18); }
+.toast { background: linear-gradient(180deg, #B8104B, #8B0333); color: #fff; box-shadow: 8px 8px 0 rgba(5,10,18,.8), 0 0 30px var(--cherry-glow); }
+
+/* --- Формы и слайдеры --- */
+.title-input, .controls-row textarea, .duo-toggle, .sort-chosen, .category-switch, .mode-selector {
+  background: rgba(11,22,34,.7);
+}
+.title-input:focus, .controls-row textarea:focus { border-color: var(--c-sky); box-shadow: 0 0 0 4px rgba(120,182,219,.2); background: rgba(19,36,52,.9); }
+.val-display { background: rgba(11,22,34,.8); border-color: rgba(120,182,219,.25); }
+input[type="range"] { background: linear-gradient(90deg, rgba(139,3,51,.55), rgba(120,182,219,.55)); border-color: var(--ink); }
+input[type="range"]::-webkit-slider-thumb {
+  background: radial-gradient(circle at 35% 30%, #FF5C8D 0%, #8B0333 70%);
+  border-color: var(--c-ice);
+  box-shadow: 0 0 14px var(--cherry-glow), 2px 2px 0 var(--ink);
+}
+input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; background: #8B0333; border: 3px solid var(--c-ice); border-radius: 50%; cursor: pointer; }
+.score-display { text-shadow: 6px 6px 0 rgba(5,10,18,.7), 0 0 40px currentColor; }
+
+/* --- Рулетка --- */
+.slot-window { background: #0B1622; box-shadow: inset 0 0 60px #000, 0 0 40px rgba(120,182,219,.12); }
+.slot-overlay { background: linear-gradient(to bottom, #0B1622 0%, transparent 22%, transparent 78%, #0B1622 100%); }
+.slot-selector { border-color: var(--c-cherry); background: linear-gradient(90deg, rgba(139,3,51,.05), rgba(139,3,51,.28), rgba(139,3,51,.05)); box-shadow: 0 0 34px var(--cherry-glow); }
+
+/* --- Скроллбар --- */
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--c-sky), #4A7A99); border: 2px solid var(--bg-darker); }
+::-webkit-scrollbar-thumb:hover { background: var(--c-cherry); }
+
+/* --- Уважаем тех, кто не любит анимации --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+
+
+/* ==========================================================
+   КНОПКА ЗАКРЫТИЯ (.clear-btn не был описан в CSS — из-за этого
+   в модалках появлялась светлая полоса с крестиком)
+   ========================================================== */
+.clear-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 30;
+  width: 40px; height: 40px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 1.05rem; font-weight: 800; line-height: 1;
+  color: var(--c-ice);
+  background: rgba(11,22,34,.72);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 2px solid rgba(233,240,248,.35);
+  box-shadow: 0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18);
+  transition: transform .2s, background .2s, border-color .2s, box-shadow .2s;
+}
+.clear-btn:hover {
+  background: linear-gradient(180deg, #D01658, #8B0333);
+  border-color: #fff; color: #fff;
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 0 0 22px var(--cherry-glow), 0 4px 14px rgba(0,0,0,.45);
+}
+
+/* ==========================================================
+   ДЕТАЛИ ФИЛЬМА — «ледяная вкусняшка»
+   ========================================================== */
+.detail-box {
+  background:
+    radial-gradient(60% 50% at 8% 0%, rgba(160,215,245,.30), transparent 70%),
+    radial-gradient(50% 45% at 100% 100%, rgba(139,3,51,.28), transparent 70%),
+    linear-gradient(155deg, #23517A 0%, #163654 48%, #10202F 100%);
+  border: 2px solid rgba(190,226,248,.45);
+  box-shadow:
+    0 40px 90px rgba(0,0,0,.65),
+    0 0 100px rgba(120,182,219,.28),
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 0 0 1px rgba(120,182,219,.18);
+}
+/* стеклянный блик по диагонали */
+.detail-box::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(115deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 28%);
+}
+.detail-backdrop { opacity: .38; filter: saturate(1.15); }
+.detail-content { z-index: 2; }
+
+.detail-poster {
+  border: 2px solid rgba(220,238,250,.7);
+  box-shadow: 0 18px 40px rgba(0,0,0,.55), 0 0 40px rgba(120,182,219,.35);
+}
+.detail-title { filter: drop-shadow(0 4px 14px rgba(5,10,18,.6)); }
+
+.detail-rating {
+  color: #E9F5FF; background: linear-gradient(180deg, rgba(120,182,219,.35), rgba(120,182,219,.14));
+  border: 1px solid rgba(190,226,248,.55);
+  box-shadow: 0 0 16px rgba(120,182,219,.25), inset 0 1px 0 rgba(255,255,255,.25);
+  border-radius: 999px; padding: 4px 14px;
+}
+.detail-year, .detail-runtime { color: #BEE0F5; }
+.detail-genres { color: #9ED2F2; text-shadow: 0 0 18px rgba(120,182,219,.45); }
+.detail-overview { color: #D3E6F4; }
+
+.detail-actions .btn-retro { border-color: rgba(11,22,34,.9); }
+.detail-actions .btn-retro.pine {
+  background: linear-gradient(180deg, #5BB0E6 0%, #2F7DB5 100%);
+  color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+.detail-actions .btn-retro.pine:hover {
+  background: linear-gradient(180deg, #7CC4F2 0%, #3A8FCB 100%);
+  box-shadow: 8px 8px 0 var(--ink), 0 0 30px rgba(120,182,219,.6);
+}
+
+/* модалка архива и трейлер — тот же ледяной стиль */
+#archive-modal .modal-box {
+  background:
+    radial-gradient(60% 50% at 0% 0%, rgba(160,215,245,.22), transparent 70%),
+    linear-gradient(155deg, #1C4468 0%, #142B44 55%, #1A000B 150%);
+  border-color: rgba(190,226,248,.4);
+  box-shadow: 0 40px 90px rgba(0,0,0,.65), 0 0 80px rgba(120,182,219,.22), inset 0 1px 0 rgba(255,255,255,.3);
+}
+#archive-modal .archive-modal-poster { border-color: rgba(220,238,250,.6); box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 30px rgba(120,182,219,.3); }
+#archive-modal #am-score { color: #CFE8F7; text-shadow: 0 0 24px rgba(120,182,219,.6); }
+.trailer-box { border-color: rgba(190,226,248,.45); box-shadow: 0 30px 80px rgba(0,0,0,.7), 0 0 80px rgba(120,182,219,.25); }
+
+@media (max-width: 768px) {
+  .detail-box { max-height: 92vh; }
+  .clear-btn { width: 36px; height: 36px; }
+}
+
+
+/* ==========================================================
+   SVG-ИКОНКИ (Lucide, лицензия ISC) — вместо эмодзи
+   ========================================================== */
+.ic { width: 1.2em; height: 1.2em; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em; }
+.ic-fill { fill: currentColor; }
+.ic-xl { width: 3rem; height: 3rem; stroke-width: 1.6; }
+.btn-retro .ic, .cat-filter-btn .ic, .sort-opt .ic, .sort-chosen .ic, .duo-toggle .ic, .deck-user .ic { margin-right: 2px; }
+.side-link span .ic { width: 1em; height: 1em; }
+.side-link.active .ic { color: #fff; }
+.detail-rating .ic { color: #F3CF8A; fill: #F3CF8A; width: 1em; height: 1em; }
+.m-lbl .ic { width: 1em; height: 1em; color: var(--c-sky); }
+.no-poster-bg .ic-xl { margin-bottom: 8px; opacity: .8; }
+.jackpot-ic { margin-bottom: 12px; color: var(--c-sky); filter: drop-shadow(0 0 18px rgba(120,182,219,.6)); }
+.jackpot-ic .ic-xl { width: 4rem; height: 4rem; }
+.clear-btn .ic { width: 18px; height: 18px; stroke-width: 2.6; vertical-align: 0; }
+.duo-toggle .ic { color: var(--rust-text); fill: var(--rust-text); }
+
+/* корона «шедевра» вместо 👑 */
+.movie-card.masterpiece .card-frame::before {
+  content: ''; font-size: 0; width: 34px; height: 34px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #9ED2F2 100%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z%22 /%3E %3Cpath d=%22M5 21h14%22 /%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z%22 /%3E %3Cpath d=%22M5 21h14%22 /%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 0 8px rgba(120,182,219,.9));
+}
+
+/* ==========================================================
+   НИЖНЯЯ ПАНЕЛЬ (мобильная) — раньше стилей не было
+   ========================================================== */
+.bottom-dock { display: none; }
+@media (max-width: 768px) {
+  .bottom-dock {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 600;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px;
+    background: rgba(19,36,52,.84); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(120,182,219,.3); border-radius: 22px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.15);
+  }
+  .dock-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border-radius: 16px; color: var(--muted); font-size: .7rem; font-weight: 800; text-decoration: none; transition: .2s; }
+  .dock-btn i { font-style: normal; display: flex; }
+  .dock-btn .ic { width: 22px; height: 22px; }
+  .dock-btn.active { background: linear-gradient(180deg, #B8104B, #8B0333); color: #fff; box-shadow: 0 0 18px var(--cherry-glow); }
+}

@@ -1,0 +1,41 @@
+@keyframes pulse { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes twinkle { 0% { opacity: 0.5; filter: drop-shadow(0 0 2px var(--gold)); } 100% { opacity: 1; filter: drop-shadow(0 0 8px var(--gold)); } }
+@keyframes floatCrown { 0% { transform: translateY(0) rotate(-10deg); } 100% { transform: translateY(-8px) rotate(10deg); } }
+
+@media (max-width: 768px) {
+  .top-deck { padding: 12px 20px; }
+  .deck-search { display: none; }
+  .deck-user span { display: none; }
+  .archive-container, .rate-wrapper, .roulette-wrapper { padding: 24px 16px 100px; }
+  .scoreboard-title { font-size: 2.5rem; }
+  .scoreboard-banner { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .scoreboard-metrics { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .metric-card { min-width: unset; padding: 16px 8px; border-radius: var(--r-md); }
+  .m-val { font-size: 1.8rem; }
+  .control-row { flex-direction: column; align-items: stretch; }
+  .category-switch { width: 100%; overflow-x: auto; }
+  .cat-btn { flex: 1; white-space: nowrap; padding: 10px 12px; }
+  .sort-selector { width: 100%; }
+  .cards-deck { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .card-score-pill { font-size: 1rem; padding: 4px 8px; top: 8px; right: 8px; }
+  .card-del-btn { opacity: 1; width: 32px; height: 32px; bottom: 8px; right: 8px; font-size: 1rem; }
+  .card-headline { font-size: 1rem; }
+  .rate-grid { grid-template-columns: 1fr; gap: 24px; }
+  .sliders-wrapper.is-duo { grid-template-columns: 1fr; }
+  .controls-row { flex-direction: column; }
+  .controls-row textarea { height: 140px; }
+  .score-display { font-size: 5rem; }
+  .detail-content { flex-direction: column; padding: 24px; gap: 20px; }
+  .detail-poster { width: 180px; margin: 0 auto; }
+  .detail-title { font-size: 2rem; text-align: center; }
+  .detail-meta { justify-content: center; }
+  .detail-genres { text-align: center; }
+  .detail-actions { flex-direction: column; }
+  .cinema-hero { height: 350px; }
+  .cinema-hero-content h1 { font-size: 2.2rem; }
+  .archive-modal-content { flex-direction: column; align-items: center; text-align: center; }
+  .archive-modal-poster { width: 150px; }
+  .archive-modal-stats { text-align: left; }
+  .archive-modal-review { text-align: left; }
+}

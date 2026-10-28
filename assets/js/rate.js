@@ -5,6 +5,19 @@ let currentUser = null, currentScore = 0, selectedPoster = '', selectedGenres = 
 
 const GENRE_MAP = { 28: "Боевик", 12: "Приключения", 16: "Мультфильм", 35: "Комедия", 80: "Криминал", 99: "Документальный", 18: "Драма", 10751: "Семейный", 14: "Фэнтези", 36: "История", 27: "Ужасы", 10402: "Музыка", 9648: "Детектив", 10749: "Мелодрама", 878: "Фантастика", 10770: "ТВ фильм", 53: "Триллер", 10752: "Военный", 37: "Вестерн", 10759: "Боевик/Прикл.", 10762: "Детский", 10763: "Новости", 10764: "Реалити", 10765: "Фантастика/Фэнтези", 10766: "Мыльная опера", 10767: "Ток-шоу", 10768: "Война/Политика" };
 
+const ICON = (name, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+const SAVE_HTML = `${ICON('bookmark-plus')} СОХРАНИТЬ В АРХИВ`;
+const SPIN_HTML = `${ICON('loader-circle', 'ic-spin')} СОХРАНЕНИЕ…`;
+const NO_IMG = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='92' height='138'><rect width='92' height='138' fill='#2A0111'/><rect x='6' y='6' width='80' height='126' rx='6' fill='none' stroke='#78B6DB' stroke-opacity='.5' stroke-dasharray='4 4'/></svg>");
+
+function showToast(msg) {
+    const t = document.getElementById('toast'); if (!t) return;
+    t.textContent = msg; t.classList.remove('hidden');
+    requestAnimationFrame(() => t.classList.add('show'));
+    clearTimeout(t._h);
+    t._h = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.classList.add('hidden'), 300); }, 2600);
+}
+
 onAuthStateChanged(auth, (user) => { if (user) currentUser = user; else window.location.href = '../index.html'; });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
@@ -45,7 +58,15 @@ function showSuggestions(movies) {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         const title = m.title || m.name;
-        div.innerHTML = `<img src="${m.poster_path ? `https://image.tmdb.org/t/p/w92${m.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Img'}" style="width:40px; border-radius:6px;"><div style="font-family:'DM Sans'; font-weight:800; font-size:0.95rem;">${title}</div>`;
+        const thumb = document.createElement('img');
+        thumb.src = m.poster_path ? `https://image.tmdb.org/t/p/w92${m.poster_path}` : NO_IMG;
+        thumb.alt = '';
+        const name = document.createElement('div');
+        name.className = 'suggestion-name';
+        name.textContent = title;
+        const year = (m.release_date || m.first_air_date || '').slice(0, 4);
+        if (year) { const y = document.createElement('span'); y.className = 'suggestion-year'; y.textContent = year; name.appendChild(y); }
+        div.append(thumb, name);
         
         div.addEventListener('click', () => {
             titleInput.value = title;
@@ -57,7 +78,7 @@ function showSuggestions(movies) {
             
             typeOptions.forEach(opt => opt.classList.remove('active'));
             const targetOpt = document.querySelector(`#media-type-options .sort-opt[data-value="${mediaType}"]`);
-            if (targetOpt) { targetOpt.classList.add('active'); typeSelected.innerHTML = `${targetOpt.innerText} <span>▼</span>`; typeSelected.setAttribute('data-value', mediaType); }
+            if (targetOpt) { targetOpt.classList.add('active'); typeSelected.innerHTML = `${targetOpt.innerHTML} <span>▼</span>`; typeSelected.setAttribute('data-value', mediaType); }
 
             if (selectedPoster) { previewPosterImg.src = selectedPoster; previewPosterImg.style.display = 'block'; previewNoPoster.classList.add('hidden'); } 
             else { previewPosterImg.style.display = 'none'; previewNoPoster.classList.remove('hidden'); }
@@ -89,7 +110,14 @@ function getScore(suffix) {
     return (base + vibe) / 6;
 }
 
-const VERDICTS = [{ max: 3.5}, { max: 5.5}, { max: 7.0}, { max: 8.5}, { max: 9.9}, { max: 10.0}];
+const VERDICTS = [
+    { max: 3.5, text: 'Лучше бы не смотрели' },
+    { max: 5.5, text: 'Так себе, на один раз' },
+    { max: 7.0, text: 'Нормально, можно глянуть' },
+    { max: 8.5, text: 'Достойно, рекомендую' },
+    { max: 9.9, text: 'Отличное кино!' },
+    { max: 10.0, text: 'Абсолютный шедевр' }
+];
 
 function calculate() {
     const score1 = getScore('1'); let raw = score1;
@@ -107,13 +135,53 @@ function calculate() {
     if (currentScore < 4.0) display.classList.add('color-red'); else if (currentScore < 5.5) display.classList.add('color-orange');
     else if (currentScore < 7.0) display.classList.add('color-yellow'); else if (currentScore < 8.5) display.classList.add('color-lime');
     else if (currentScore < 10.0) display.classList.add('color-green'); else display.classList.add('color-gold');
+
+    const colorCls = ['color-red', 'color-orange', 'color-yellow', 'color-lime', 'color-green', 'color-gold'].find(c => display.classList.contains(c));
+    const ring = document.getElementById('score-ring');
+    if (ring) { ring.className = 'score-ring ' + colorCls; ring.style.setProperty('--score', (currentScore * 10).toFixed(1)); }
+    const mini = document.getElementById('mini-score');
+    if (mini) { mini.className = 'mini-score ' + colorCls + (mini.classList.contains('show') ? ' show' : ''); document.getElementById('mini-val').textContent = currentScore.toFixed(1); }
 }
 
-document.querySelectorAll('input[type="range"]').forEach(i => i.addEventListener('input', calculate)); calculate();
+// логика для чекбокса парной оценки
+document.getElementById('is-duo-checkbox')?.addEventListener('change', (e) => {
+    const user2Col = document.getElementById('user2-col');
+    const user1Title = document.getElementById('user1-title');
+    const slidersWrapper = document.getElementById('sliders-wrapper');
+    
+    if (e.target.checked) {
+        user2Col?.classList.remove('hidden');
+        user1Title?.classList.remove('hidden');
+        slidersWrapper?.classList.add('is-duo');
+    } else {
+        user2Col?.classList.add('hidden');
+        user1Title?.classList.add('hidden');
+        slidersWrapper?.classList.remove('is-duo');
+    }
+    calculate(); // пересчитываем балл
+});
+
+const paintRange = (el) => el.style.setProperty('--f', ((el.value - el.min) / (el.max - el.min)).toFixed(4));
+document.querySelectorAll('input[type="range"]').forEach(i => { i.addEventListener('input', () => { paintRange(i); calculate(); }); paintRange(i); });
+calculate();
+
+// плавающий балл: виден, пока итоговая карточка ниже экрана
+const miniScore = document.getElementById('mini-score');
+const finalBox = document.querySelector('.final-score-box');
+function updateMini() {
+    if (!miniScore || !finalBox) return;
+    const r = finalBox.getBoundingClientRect();
+    const farBelow = r.top > window.innerHeight * 0.9;
+    miniScore.classList.toggle('show', farBelow && !previewBox.classList.contains('hidden'));
+}
+window.addEventListener('scroll', updateMini, { passive: true });
+window.addEventListener('resize', updateMini);
+document.addEventListener('click', () => setTimeout(updateMini, 60));
+updateMini();
 
 document.getElementById('save-btn').onclick = async () => {
-    if (!titleInput.value.trim() || previewBox.classList.contains('hidden')) return alert('Выберите фильм!');
-    const btn = document.getElementById('save-btn'); btn.disabled = true; btn.textContent = 'СОХРАНЕНИЕ... ⏳';
+    if (!titleInput.value.trim() || previewBox.classList.contains('hidden')) { showToast('Сначала выбери фильм из подсказок'); titleInput.focus(); return; }
+    const btn = document.getElementById('save-btn'); btn.disabled = true; btn.innerHTML = SPIN_HTML;
 
     const isDuo = document.getElementById('is-duo-checkbox').checked;
     const finalStats = {
@@ -133,7 +201,7 @@ document.getElementById('save-btn').onclick = async () => {
             authorPhoto: currentUser.photoURL, userId: currentUser.uid, timestamp: serverTimestamp(),
             date: new Date().toLocaleDateString('ru-RU'), stats: finalStats, review: document.getElementById('review-text').value.trim() || null
         });
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#eebf45', '#c4462b', '#f4ebd9', '#1e3a2f'] });
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#78B6DB', '#E9F0F8', '#B8104B', '#FF5C8D'] });
         setTimeout(() => { window.location.href = 'list.html'; }, 800);
-    } catch (e) { alert("Ошибка Firebase"); btn.disabled = false; btn.textContent = 'СОХРАНИТЬ В АРХИВ'; }
+    } catch (e) { console.error(e); showToast('Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
 };

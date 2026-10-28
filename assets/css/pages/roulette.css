@@ -1,0 +1,18 @@
+.roulette-wrapper { max-width: 860px; margin: 0 auto; padding: 40px 24px 120px; z-index: 5; position: relative; }
+.slot-machine { background: var(--surface); border: var(--bw-thick) solid var(--ink); border-radius: var(--r-xl); padding: 40px; box-shadow: 12px 12px 0 rgba(0,0,0,0.6); color: var(--paper); position: relative; }
+.mode-selector { display: flex; background: var(--bg-darker); border-radius: var(--r-sm); padding: 6px; border: var(--bw-thick) solid var(--ink); margin-bottom: 32px; width: max-content; }
+.mode-btn { background: transparent; border: none; color: var(--muted); padding: 12px 28px; border-radius: 4px; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+.mode-btn.active { background: var(--rust); color: var(--snow); box-shadow: 4px 4px 0 var(--ink); }
+.slot-window { background: #121C2B; border: var(--bw-thick) solid var(--ink); border-radius: var(--r-md); height: 250px; overflow: hidden; position: relative; box-shadow: inset 0 0 60px #000, 0 10px 20px rgba(0,0,0,0.5); }
+.slot-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, #121C2B 0%, transparent 20%, transparent 80%, #121C2B 100%); pointer-events: none; z-index: 10; }
+.slot-selector { position: absolute; top: 50%; left: 0; width: 100%; height: 90px; transform: translateY(-50%); border-top: 3px solid var(--rust); border-bottom: 3px solid var(--rust); background: rgba(138, 21, 56, 0.1); z-index: 5; box-shadow: 0 0 30px rgba(138, 21, 56, 0.4); }
+.slot-reel { display: flex; flex-direction: column; }
+.slot-item { height: 90px; display: flex; align-items: center; justify-content: center; font-family: 'Alfa Slab One', serif; font-size: 1.8rem; color: var(--paper); border-bottom: 1px solid rgba(255,255,255,0.05); }
+.slot-item img { height: 80px; border-radius: 4px; object-fit: cover; }
+.blur-effect { filter: blur(6px); opacity: 0.3; }
+.duration-group { margin-top: 32px; }
+.duration-group label { display: flex; justify-content: space-between; color: var(--paper); font-weight: 800; margin-bottom: 12px; font-size: 1rem; text-transform: uppercase; }
+.duration-group span { color: var(--rust); font-family: 'Space Mono', monospace; font-size: 1.2rem; }
+.controls-row { display: flex; gap: 24px; margin-top: 32px; align-items: stretch; flex-wrap: wrap; }
+.controls-row textarea { flex: 1; min-width: 240px; background: var(--bg-darker); border: var(--bw-thick) solid var(--ink); color: var(--paper); padding: 20px; border-radius: var(--r-md); resize: none; height: 160px; outline: none; font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 600; box-shadow: inset 0 4px 6px rgba(0,0,0,0.5); transition: 0.2s; }
+.controls-row textarea:focus { border-color: var(--rust); background: var(--surface-light); }
