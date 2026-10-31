@@ -1,8 +1,17 @@
-import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, deleteDoc, doc, updateDoc, signOut } from './firebase-init.js';
+import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, deleteDoc, doc, signOut, limit, where, startAfter } from './firebase-init.js';
+import { escapeHtml, posterUrl, resolveMedia, watchUrl, trailerUrl } from './shared.js';
 
-const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
-let currentUser = null, loadedMovies = [];
-const escapeHtml = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+let currentUser = null, loadedMovies = [], lastDocument = null, hasMore = true, loading = false;
+const PAGE_SIZE = 48;
+const moreButton = document.createElement('button');
+moreButton.className = 'btn-retro';
+moreButton.textContent = 'Загрузить ещё';
+moreButton.hidden = true;
+document.getElementById('movies-grid').after(moreButton);
+const archiveNotice = document.createElement('p');
+archiveNotice.textContent = 'Поиск, фильтры и статистика учитывают загруженные записи. Для остальных нажмите «Загрузить ещё».';
+document.getElementById('movies-grid').before(archiveNotice);
+moreButton.addEventListener('click', () => fetchMovies(true));
 
 onAuthStateChanged(auth, (user) => { 
     if (user) { currentUser = user; document.getElementById('nav-user-name').textContent = user.displayName; if(user.photoURL) document.getElementById('nav-user-avatar').src = user.photoURL; fetchMovies(); } 
@@ -10,29 +19,34 @@ onAuthStateChanged(auth, (user) => {
 });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
-function recoverOriginalScore(stats, isDuo) {
-    if (!stats) return 0;
-    const getP = (val, idx) => { if (!val) return 0; let s = String(val); return s.includes('/') ? (parseFloat(s.split('/')[idx]) || 0) : (parseFloat(s) || 0); };
-    const calc = (idx) => { let base = 0; ['script', 'actors', 'directing', 'chars', 'idea'].forEach(k => base += getP(stats[k], idx)); let vibe = 0; ['atmosphere', 'impression'].forEach(k => vibe += getP(stats[k], idx) * 5); return Math.max(0, Math.round(((base + vibe - 15) / 85) * 100)); };
-    let s1 = calc(0); return isDuo ? Math.round((s1 + calc(1)) / 2) : s1;
-}
-
-async function fetchMovies() {
+// Читаем только личные записи порциями, не изменяя старые данные.
+async function fetchMovies(append = false) {
+    if (loading || !currentUser || (append && !hasMore)) return;
+    loading = true;
+    moreButton.disabled = true;
     const grid = document.getElementById('movies-grid');
-    grid.innerHTML = Array(8).fill(`<div class="movie-card skeleton"><div class="card-frame"><div class="skeleton-shimmer"></div></div><div class="card-caption"><div class="skeleton-line" style="width: 80%;"></div><div class="skeleton-line" style="width: 50%;"></div></div></div>`).join('');
+    if (!append) { loadedMovies = []; lastDocument = null; grid.textContent = 'Загрузка…'; }
     try {
-        const snap = await getDocs(query(collection(db, "movies"), orderBy("timestamp", "desc")));
-        loadedMovies = [];
-        snap.forEach(d => {
-            let data = d.data(), finalScore = data.score;
-            if (data.stats && data.stats.script && !String(data.stats.script).includes('.') && !data.isPerfectlyRestored) {
-                finalScore = parseFloat((recoverOriginalScore(data.stats, data.isDuo) / 10).toFixed(1));
-                updateDoc(doc(db, "movies", d.id), { score: finalScore, isPerfectlyRestored: true });
-            }
-            data.score = finalScore; loadedMovies.push({ id: d.id, ...data });
+        const constraints = [where('userId', '==', currentUser.uid), orderBy('timestamp', 'desc')];
+        if (append && lastDocument) constraints.push(startAfter(lastDocument));
+        const snap = await getDocs(query(collection(db, 'movies'), ...constraints, limit(PAGE_SIZE)));
+        snap.forEach(record => {
+            const data = record.data();
+            loadedMovies.push({ ...data, id: record.id,
+                title: typeof data.title === 'string' ? data.title : 'Без названия',
+                genres: typeof data.genres === 'string' ? data.genres : '',
+                score: Number.isFinite(Number(data.score)) ? Math.min(10, Math.max(0, Number(data.score))) : 0
+            });
         });
+        lastDocument = snap.docs.at(-1) || lastDocument;
+        hasMore = snap.size === PAGE_SIZE;
+        moreButton.hidden = !hasMore;
         updateCounters(loadedMovies); renderGenres(loadedMovies); applyFiltersAndSort();
-    } catch (e) { grid.innerHTML = '<p style="text-align:center; grid-column:1/-1; color:var(--rust); font-weight:800;">ОШИБКА ДОСТУПА</p>'; }
+    } catch (error) {
+        console.error('Ошибка загрузки архива:', error);
+        if (!append) grid.textContent = 'Не удалось загрузить архив. Обновите страницу.';
+        else alert('Не удалось загрузить следующую страницу. Попробуйте ещё раз.');
+    } finally { loading = false; moreButton.disabled = false; }
 }
 
 function updateCounters(movies) {
@@ -53,14 +67,15 @@ function render(movies) {
         card.className = `movie-card${Number(m.score) === 10 ? ' masterpiece' : ''}`;
         card.innerHTML = `
             <div class="card-frame">
-                ${m.poster ? `<img src="${m.poster}" class="card-cover" loading="lazy">` : `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">НЕТ ФОТО</div>`}
+                ${m.poster ? `<img src="${escapeHtml(posterUrl(m.poster))}" class="card-cover" loading="lazy">` : `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">НЕТ ФОТО</div>`}
                 <div class="card-score-pill ${colorClass}">${Number(m.score).toFixed(1)}</div>
-                ${isOwner ? `<button class="card-del-btn" onclick="event.stopPropagation(); removeMovie('${m.id}')">✕</button>` : ''}
+                ${isOwner ? `<button class="card-del-btn" >✕</button>` : ''}
             </div>
             <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div><div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div></div>
         `;
         
-                const frame = card.querySelector('.card-frame');
+        card.querySelector('.card-del-btn')?.addEventListener('click', event => { event.stopPropagation(); removeMovie(m.id); });
+        const frame = card.querySelector('.card-frame');
         let rect = null;
         let rafId = null;
 
@@ -86,7 +101,6 @@ function render(movies) {
             if (rafId) cancelAnimationFrame(rafId);
             if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; 
         });
-        card.addEventListener('mouseleave', () => { if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; });
         
         card.addEventListener('click', () => openArchiveModal(m));
         grid.appendChild(card);
@@ -95,7 +109,7 @@ function render(movies) {
 
 function openArchiveModal(m) {
     const modal = document.getElementById('archive-modal');
-    document.getElementById('am-poster').src = m.poster || 'https://via.placeholder.com/200x300?text=No+Poster';
+    document.getElementById('am-poster').src = posterUrl(m.poster);
     document.getElementById('am-title').textContent = m.title;
     document.getElementById('am-genres').textContent = m.genres || 'Жанр неизвестен';
     document.getElementById('am-score').textContent = Number(m.score).toFixed(1);
@@ -114,42 +128,31 @@ function openArchiveModal(m) {
     if (m.review) { reviewBox.textContent = `"${m.review}"`; reviewBox.classList.remove('hidden'); } 
     else { reviewBox.classList.add('hidden'); }
 
-    // Кнопка трейлера
+    // Используем сохранённый идентификатор, а для старых записей выполняем поиск.
     document.getElementById('am-trailer-btn').onclick = async () => {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=ru-RU`);
-            const data = await res.json();
-            if (data.results.length > 0) {
-                const id = data.results[0].id;
-                const resV = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_API_KEY}&language=ru-RU`);
-                const dataV = await resV.json();
-                let video = dataV.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                if (!video) {
-                    const resEn = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
-                    const dataEn = await resEn.json();
-                    video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                }
-                if (video) {
-                    document.getElementById('trailer-iframe').src = `https://www.youtube.com/embed/${video.key}?autoplay=1`;
-                    document.getElementById('trailer-modal').classList.remove('hidden');
-                } else alert('Трейлер не найден');
-            } else alert('Фильм не найден на TMDB');
-        } catch(e) { alert('Ошибка'); }
+            const media = await resolveMedia(m);
+            const url = await trailerUrl(media.id, media.mediaType);
+            if (modal.classList.contains('hidden') || document.getElementById('am-title').textContent !== m.title) return;
+            document.getElementById('trailer-iframe').src = url;
+            document.getElementById('trailer-modal').classList.remove('hidden');
+        } catch (error) { alert(error.message); }
     };
-    
-    // НОВАЯ КНОПКА СМОТРЕТЬ
-    document.getElementById('am-watch-btn').onclick = () => {
-        window.location.href = `watch.html?title=${encodeURIComponent(m.title)}`;
+    document.getElementById('am-watch-btn').onclick = async () => {
+        try {
+            const media = await resolveMedia(m);
+            window.location.href = watchUrl(media.id, media.mediaType, m.title);
+        } catch (error) { alert(error.message); }
     };
-    
+
     modal.classList.remove('hidden');
 }
 
 document.getElementById('close-archive-modal').onclick = () => document.getElementById('archive-modal').classList.add('hidden');
 document.getElementById('close-trailer').onclick = () => { document.getElementById('trailer-modal').classList.add('hidden'); document.getElementById('trailer-iframe').src = ''; };
 
-window.removeMovie = async (id) => {
-    if (!confirm('Точно удалить?')) return;
+async function removeMovie(id) {
+    if (!loadedMovies.some(movie => movie.id === id && movie.userId === currentUser?.uid) || !confirm('Точно удалить?')) return;
     try {
         await deleteDoc(doc(db, "movies", id));
         loadedMovies = loadedMovies.filter(m => m.id !== id);
@@ -159,9 +162,12 @@ window.removeMovie = async (id) => {
 
 function renderGenres(movies) {
     const container = document.getElementById('genre-filters'); if (!container) return;
+    const activeGenre = container.querySelector('.rail-chip.active')?.dataset.genre || 'all';
     let allGenres = new Set(); movies.forEach(m => { if(m.genres) m.genres.split(',').forEach(g => allGenres.add(g.trim())); });
     container.innerHTML = `<button class="rail-chip active" data-genre="all">ВСЕ</button>` + Array.from(allGenres).sort().map(g => `<button class="rail-chip" data-genre="${escapeHtml(g)}">${escapeHtml(g.toUpperCase())}</button>`).join('');
-    container.querySelectorAll('.rail-chip').forEach(btn => btn.addEventListener('click', (e) => { container.querySelectorAll('.rail-chip').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); applyFiltersAndSort(); }));
+    const selectedGenre = Array.from(container.querySelectorAll('.rail-chip')).find(button => button.dataset.genre === activeGenre);
+    if (selectedGenre) { container.querySelector('.rail-chip.active')?.classList.remove('active'); selectedGenre.classList.add('active'); }
+    container.querySelectorAll('.rail-chip').forEach(btn => btn.addEventListener('click', (e) => { container.querySelectorAll('.rail-chip').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); applyFiltersAndSort(); }));
 }
 
 function applyFiltersAndSort() {
@@ -173,7 +179,7 @@ function applyFiltersAndSort() {
     if (type && type !== 'all') curr = curr.filter(m => (m.type || 'movie') === type);
     
     const genre = document.querySelector('.rail-chip.active')?.dataset.genre;
-    if (genre && genre !== 'all') curr = curr.filter(m => m.genres && m.genres.includes(genre));
+    if (genre && genre !== 'all') curr = curr.filter(m => m.genres && m.genres.split(',').map(value => value.trim()).includes(genre));
     
     const sort = document.querySelector('#dropdown-options .sort-opt.active')?.dataset.value;
     if (sort === 'high') curr.sort((a,b) => b.score - a.score); else if (sort === 'low') curr.sort((a,b) => a.score - b.score); else curr.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
@@ -189,8 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', e => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
         document.querySelectorAll('#dropdown-options .sort-opt').forEach(opt => opt.addEventListener('click', () => {
             document.querySelectorAll('#dropdown-options .sort-opt').forEach(o => o.classList.remove('active')); opt.classList.add('active');
-            selected.innerHTML = `${opt.innerText} <span>▼</span>`; dropdown.classList.remove('open'); applyFiltersAndSort();
+            selected.innerHTML = `${escapeHtml(opt.innerText)} <span>▼</span>`; dropdown.classList.remove('open'); applyFiltersAndSort();
         }));
     }
-    document.querySelectorAll('.type-btn').forEach(btn => btn.addEventListener('click', (e) => { document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); applyFiltersAndSort(); }));
+    document.querySelectorAll('.type-btn').forEach(btn => btn.addEventListener('click', (e) => { document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); applyFiltersAndSort(); }));
 });

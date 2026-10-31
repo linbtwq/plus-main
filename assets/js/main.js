@@ -1,6 +1,6 @@
-import { auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, collection, getDocs, query, orderBy, limit } from './firebase-init.js';
+import { auth, provider, signInWithPopup, signOut, onAuthStateChanged } from './firebase-init.js';
 
-const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
+import { tmdb, trailerUrl } from './shared.js';
 const loginSection = document.getElementById('login-section');
 const appMenu = document.getElementById('app-menu');
 const loginBtn = document.getElementById('login-btn');
@@ -10,15 +10,21 @@ onAuthStateChanged(auth, async (user) => {
     loginSection.style.display = user ? 'none' : 'flex';
     appMenu.style.display = user ? 'block' : 'none';
 
+    if (!user) {
+        document.getElementById('cinema-hero').classList.add('hidden');
+        document.getElementById('trailer-modal').classList.add('hidden');
+        document.getElementById('trailer-iframe').src = '';
+    }
     if (user) {
         document.getElementById('user-name').textContent = user.displayName || 'Киноман';
         const avatar = document.getElementById('user-avatar');
-        if (user.photoURL) avatar.src = user.photoURL; else avatar.style.display = 'none';
+        avatar.style.display = user.photoURL ? '' : 'none';
+        if (user.photoURL) avatar.src = user.photoURL;
         
         // Загружаем Hero Баннер
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=ru-RU`);
-            const data = await res.json();
+            const data = await tmdb('trending/movie/week');
+            if (auth.currentUser?.uid !== user.uid) return;
             const movie = data.results[0];
             if (movie) {
                 document.getElementById('hero-banner-bg').style.backgroundImage = `url(https://image.tmdb.org/t/p/original${movie.backdrop_path})`;
@@ -26,20 +32,13 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('hero-banner-desc').textContent = movie.overview;
                 
                 document.getElementById('hero-banner-play').onclick = async () => {
-                    const resV = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${TMDB_API_KEY}&language=ru-RU`);
-                    const dataV = await resV.json();
-                    let video = dataV.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                    if (!video) {
-                        const resEn = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
-                        const dataEn = await resEn.json();
-                        video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-                    }
-                    if (video) {
-                        document.getElementById('trailer-iframe').src = `https://www.youtube.com/embed/${video.key}?autoplay=1`;
+                    try {
+                        const url = await trailerUrl(movie.id, 'movie');
+                        if (auth.currentUser?.uid !== user.uid) return;
+                        document.getElementById('trailer-iframe').src = url;
                         document.getElementById('trailer-modal').classList.remove('hidden');
-                    } else {
-                        alert('Трейлер не найден');
-                    }
+                    } catch (error) { alert(error.message); }
+
                 };
                 document.getElementById('cinema-hero').classList.remove('hidden');
             }
@@ -55,7 +54,10 @@ document.getElementById('close-trailer').onclick = () => {
 loginBtn.addEventListener('click', async () => {
     loginBtn.disabled = true;
     try { await signInWithPopup(auth, provider); } 
-    catch (err) { if (err.code === 'auth/popup-blocked') alert('Разреши всплывающие окна.'); } 
+    catch (err) {
+        if (err.code === 'auth/popup-blocked') alert('Разрешите всплывающие окна для входа.');
+        else if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(err.code)) alert('Не удалось войти. Проверьте соединение и повторите попытку.');
+    }
     finally { loginBtn.disabled = false; }
 });
-logoutBtn.addEventListener('click', () => signOut(auth));
+logoutBtn.addEventListener('click', () => signOut(auth).catch(() => alert('Не удалось выйти. Попробуйте ещё раз.')));

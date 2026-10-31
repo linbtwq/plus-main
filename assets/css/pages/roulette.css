@@ -6,8 +6,8 @@
 .slot-window { background: #121C2B; border: var(--bw-thick) solid var(--ink); border-radius: var(--r-md); height: 250px; overflow: hidden; position: relative; box-shadow: inset 0 0 60px #000, 0 10px 20px rgba(0,0,0,0.5); }
 .slot-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, #121C2B 0%, transparent 20%, transparent 80%, #121C2B 100%); pointer-events: none; z-index: 10; }
 .slot-selector { position: absolute; top: 50%; left: 0; width: 100%; height: 90px; transform: translateY(-50%); border-top: 3px solid var(--rust); border-bottom: 3px solid var(--rust); background: rgba(138, 21, 56, 0.1); z-index: 5; box-shadow: 0 0 30px rgba(138, 21, 56, 0.4); }
-.slot-reel { display: flex; flex-direction: column; }
-.slot-item { height: 90px; display: flex; align-items: center; justify-content: center; font-family: 'Alfa Slab One', serif; font-size: 1.8rem; color: var(--paper); border-bottom: 1px solid rgba(255,255,255,0.05); }
+.slot-reel { position: relative; display: flex; flex-direction: column; }
+.slot-item { flex-shrink: 0; height: 90px; display: flex; align-items: center; justify-content: center; font-family: 'Alfa Slab One', serif; font-size: 1.8rem; color: var(--paper); border-bottom: 1px solid rgba(255,255,255,0.05); }
 .slot-item img { height: 80px; border-radius: 4px; object-fit: cover; }
 .blur-effect { filter: blur(6px); opacity: 0.3; }
 .duration-group { margin-top: 32px; }

@@ -1,6 +1,7 @@
 import { auth, db, collection, addDoc, serverTimestamp, onAuthStateChanged, signOut } from './firebase-init.js';
 
-const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
+import { TMDB_API_KEY, fetchJson, tmdb, validId } from './shared.js';
+let selectedTmdbId = null, selectedMediaType = null, searchRequest = 0, saving = false;
 let currentUser = null, currentScore = 0, selectedPoster = '', selectedGenres = '', tmdbRating = 0;
 
 const GENRE_MAP = { 28: "Боевик", 12: "Приключения", 16: "Мультфильм", 35: "Комедия", 80: "Криминал", 99: "Документальный", 18: "Драма", 10751: "Семейный", 14: "Фэнтези", 36: "История", 27: "Ужасы", 10402: "Музыка", 9648: "Детектив", 10749: "Мелодрама", 878: "Фантастика", 10770: "ТВ фильм", 53: "Триллер", 10752: "Военный", 37: "Вестерн", 10759: "Боевик/Прикл.", 10762: "Детский", 10763: "Новости", 10764: "Реалити", 10765: "Фантастика/Фэнтези", 10766: "Мыльная опера", 10767: "Ток-шоу", 10768: "Война/Политика" };
@@ -34,6 +35,9 @@ let searchTimer, abortController;
 
 titleInput.addEventListener('input', (e) => {
     clearTimeout(searchTimer);
+    abortController?.abort();
+    const request = ++searchRequest;
+    suggestionsBox.style.display = 'none';
     const query = e.target.value.trim();
     if (query.length < 2) { suggestionsBox.style.display = 'none'; return; }
 
@@ -41,10 +45,11 @@ titleInput.addEventListener('input', (e) => {
         if (abortController) abortController.abort();
         abortController = new AbortController();
         try {
-            const resp = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`, { signal: abortController.signal });
-            const data = await resp.json();
+            const resp = await fetchJson(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`, { signal: abortController.signal });
+            const data = resp;
+            if (request !== searchRequest) return;
             showSuggestions(data.results.filter(i => i.media_type === 'movie' || i.media_type === 'tv').slice(0, 5));
-        } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+        } catch (err) { if (err.name !== 'AbortError' && request === searchRequest) showToast('Не удалось загрузить подсказки. Попробуйте ещё раз.'); }
     }, 500);
 });
 
@@ -67,12 +72,13 @@ function showSuggestions(movies) {
         div.append(thumb, name);
         
         div.addEventListener('click', () => {
+            selectedTmdbId = m.id; selectedMediaType = m.media_type;
             titleInput.value = title;
             selectedPoster = m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : '';
             tmdbRating = m.vote_average || 0;
             
             let mediaType = 'movie';
-            if (m.media_type === 'tv') mediaType = (m.origin_country && m.origin_country.includes('JP')) ? 'anime' : 'series';
+            if (m.media_type === 'tv') mediaType = (m.original_language === 'ja' && m.genre_ids?.includes(16)) ? 'anime' : 'series';
             
             typeOptions.forEach(opt => opt.classList.remove('active'));
             const targetOpt = document.querySelector(`#media-type-options .sort-opt[data-value="${mediaType}"]`);
@@ -93,6 +99,7 @@ function showSuggestions(movies) {
 }
 
 document.getElementById('clear-preview').addEventListener('click', () => {
+    searchRequest++; abortController?.abort(); clearTimeout(searchTimer); selectedTmdbId = null; selectedMediaType = null;
     titleInput.value = ''; selectedPoster = ''; selectedGenres = ''; tmdbRating = 0;
     previewBox.classList.add('hidden'); document.getElementById('search-wrapper').style.display = 'block'; titleInput.focus();
 });
@@ -137,7 +144,7 @@ function calculate() {
     if (mini) { mini.className = 'mini-score ' + colorCls + (mini.classList.contains('show') ? ' show' : ''); document.getElementById('mini-val').textContent = currentScore.toFixed(1); }
 }
 
-// логика для чекбокса парной оценки
+// Логика для чекбокса парной оценки
 document.getElementById('is-duo-checkbox')?.addEventListener('change', (e) => {
     const user2Col = document.getElementById('user2-col');
     const user1Title = document.getElementById('user1-title');
@@ -152,14 +159,14 @@ document.getElementById('is-duo-checkbox')?.addEventListener('change', (e) => {
         user1Title?.classList.add('hidden');
         slidersWrapper?.classList.remove('is-duo');
     }
-    calculate(); // пересчитываем балл
+    calculate(); // Пересчитываем балл
 });
 
 const paintRange = (el) => el.style.setProperty('--f', ((el.value - el.min) / (el.max - el.min)).toFixed(4));
 document.querySelectorAll('input[type="range"]').forEach(i => { i.addEventListener('input', () => { paintRange(i); calculate(); }); paintRange(i); });
 calculate();
 
-// плавающий балл: виден, пока итоговая карточка ниже экрана
+// Плавающий балл: виден, пока итоговая карточка ниже экрана
 const miniScore = document.getElementById('mini-score');
 const finalBox = document.querySelector('.final-score-box');
 function updateMini() {
@@ -174,7 +181,11 @@ document.addEventListener('click', () => setTimeout(updateMini, 60));
 updateMini();
 
 document.getElementById('save-btn').onclick = async () => {
+    if (saving) return;
+    if (!currentUser) return showToast('Дождитесь входа в аккаунт');
+    if (!validId(selectedTmdbId)) return showToast('Выберите тайтл из каталога');
     if (!titleInput.value.trim() || previewBox.classList.contains('hidden')) { showToast('Сначала выбери фильм из подсказок'); titleInput.focus(); return; }
+    saving = true;
     const btn = document.getElementById('save-btn'); btn.disabled = true; btn.innerHTML = SPIN_HTML;
 
     const isDuo = document.getElementById('is-duo-checkbox').checked;
@@ -190,27 +201,57 @@ document.getElementById('save-btn').onclick = async () => {
 
     try {
         await addDoc(collection(db, "movies"), {
+            schemaVersion: 2, tmdbId: Number(selectedTmdbId), mediaType: selectedMediaType,
             title: titleInput.value.trim(), genres: selectedGenres, type: typeSelected.getAttribute('data-value'),
-            score: currentScore, isDuo, poster: selectedPoster, authorName: currentUser.displayName,
+            score: currentScore, isDuo, poster: selectedPoster, authorName: currentUser.displayName || 'Киноман',
             authorPhoto: currentUser.photoURL, userId: currentUser.uid, timestamp: serverTimestamp(),
             date: new Date().toLocaleDateString('ru-RU'), stats: finalStats, review: document.getElementById('review-text').value.trim() || null
         });
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#78B6DB', '#E9F0F8', '#B8104B', '#FF5C8D'] });
+        try { if (typeof window.confetti === 'function') window.confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#78B6DB', '#E9F0F8', '#B8104B', '#FF5C8D'] }); } catch { /* Сохранение не зависит от декоративной анимации. */ }
         setTimeout(() => { window.location.href = 'list.html'; }, 800);
-    } catch (e) { console.error(e); showToast('Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
+    } catch (e) { saving = false; console.error(e); showToast('Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
 };
 
-// ==========================================
-// АВТОЗАПОЛНЕНИЕ ПРИ ПЕРЕХОДЕ С ПЛЕЕРА
-// ==========================================
+// При переходе из плеера выбираем точный тайтл по идентификатору.
 const pageUrlParams = new URLSearchParams(window.location.search);
-const prefillTitle = pageUrlParams.get('title');
-
-if (prefillTitle) {
-    titleInput.value = prefillTitle;
-    // Триггерим событие 'input', чтобы сработал поиск и выпали подсказки
+const prefillId = pageUrlParams.get('id');
+const prefillType = pageUrlParams.get('type');
+if (validId(prefillId) && ['movie', 'tv'].includes(prefillType)) {
+    tmdb(`${prefillType}/${prefillId}`).then(movie => {
+        if (selectedTmdbId || titleInput.value.trim()) return;
+        showSuggestions([{ ...movie, media_type: prefillType, genre_ids: (movie.genres || []).map(genre => genre.id) }]);
+        suggestionsBox.firstElementChild?.click();
+    }).catch(() => showToast('Не удалось загрузить тайтл. Выберите его через поиск.'));
+} else if (pageUrlParams.get('title')) {
+    titleInput.value = pageUrlParams.get('title');
     titleInput.dispatchEvent(new Event('input'));
-    
-    // Убираем параметр из URL, чтобы при обновлении страницы не искало заново
-    window.history.replaceState({}, document.title, window.location.pathname);
 }
+
+// Обрабатываем выбор категории мышью и клавиатурой.
+const typeDropdown = document.getElementById('media-type-dropdown');
+typeSelected.tabIndex = 0;
+typeSelected.setAttribute('role', 'button');
+typeSelected.setAttribute('aria-expanded', 'false');
+function toggleType() {
+    typeDropdown.classList.toggle('open');
+    typeSelected.setAttribute('aria-expanded', String(typeDropdown.classList.contains('open')));
+}
+typeSelected.addEventListener('click', toggleType);
+typeSelected.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleType(); }
+});
+typeOptions.forEach(option => {
+    option.tabIndex = 0;
+    const select = () => {
+        typeOptions.forEach(item => item.classList.toggle('active', item === option));
+        typeSelected.replaceChildren(...Array.from(option.childNodes, child => child.cloneNode(true)));
+        typeSelected.dataset.value = option.dataset.value;
+        typeDropdown.classList.remove('open');
+        typeSelected.setAttribute('aria-expanded', 'false');
+    };
+    option.addEventListener('click', select);
+    option.addEventListener('keydown', event => { if (event.key === 'Enter') select(); });
+});
+document.addEventListener('click', event => {
+    if (!typeDropdown.contains(event.target)) { typeDropdown.classList.remove('open'); typeSelected.setAttribute('aria-expanded', 'false'); }
+});

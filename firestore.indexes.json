@@ -1,0 +1,11 @@
+{
+  "indexes": [{
+    "collectionGroup": "movies",
+    "queryScope": "COLLECTION",
+    "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" },
+      { "fieldPath": "timestamp", "order": "DESCENDING" }
+    ]
+  }],
+  "fieldOverrides": []
+}

@@ -1,6 +1,7 @@
 import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 
-const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
+import { loadRoulette, saveRoulette } from './roulette-store.js';
+import { TMDB_API_KEY, escapeHtml, posterUrl, fetchJson, watchUrl, trailerUrl } from './shared.js';
 const GENRE_MAP = { 28: "Боевик", 12: "Приключения", 16: "Мультфильм", 35: "Комедия", 80: "Криминал", 99: "Документальный", 18: "Драма", 10751: "Семейный", 14: "Фэнтези", 36: "История", 27: "Ужасы", 10402: "Музыка", 9648: "Детектив", 10749: "Мелодрама", 878: "Фантастика", 10770: "ТВ фильм", 53: "Триллер", 10752: "Военный", 37: "Вестерн", 10759: "Боевик/Прикл.", 10762: "Детский", 10763: "Новости", 10764: "Реалити", 10765: "Фантастика/Фэнтези", 10766: "Мыльная опера", 10767: "Ток-шоу", 10768: "Война/Политика" };
 
 onAuthStateChanged(auth, (user) => { if (user) { loadCatalog(); } else { window.location.href = '../index.html'; } });
@@ -19,10 +20,12 @@ document.getElementById('close-trailer')?.addEventListener('click', () => {
     if (trailerIframe) trailerIframe.src = ''; 
 });
 document.getElementById('close-detail')?.addEventListener('click', () => { 
+    detailRequest++;
     if (detailModal) detailModal.classList.add('hidden'); 
 });
 
 let currentPage = 1, currentFilter = 'trending', isLoading = false;
+let catalogController, catalogRequest = 0, detailRequest = 0, searchQuery = '';
 
 function showToast(msg) {
     if (!toast) return;
@@ -38,61 +41,63 @@ function getEndpoint(type, page) {
     return `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}&language=ru-RU&page=${page}`;
 }
 
+// Каждый ответ относится к конкретному фильтру и странице.
 async function loadCatalog(isLoadMore = false) {
-    if (isLoading) return; isLoading = true;
-    
-    if (!isLoadMore) { 
-        if (catalogGrid) catalogGrid.innerHTML = '<div class="catalog-loader">ЗАГРУЗКА... ⏳</div>'; 
-        currentPage = 1; 
-    } 
-    else if (loadMoreBtn) { 
-        loadMoreBtn.textContent = 'ЗАГРУЗКА... ⏳'; 
-        loadMoreBtn.disabled = true; 
-    }
-
+    if (isLoadMore && isLoading) return;
+    catalogController?.abort();
+    catalogController = new AbortController();
+    const request = ++catalogRequest;
+    const filter = currentFilter;
+    const page = isLoadMore ? currentPage : 1;
+    const query = searchQuery;
+    isLoading = true;
+    if (!isLoadMore) catalogGrid.textContent = 'Загрузка…';
+    loadMoreBtn.disabled = true;
     try {
-        const res = await fetch(getEndpoint(currentFilter, currentPage));
-        const data = await res.json();
-        if (!isLoadMore && catalogGrid) catalogGrid.innerHTML = '';
-        
-        data.results.forEach(item => { if (item.poster_path) renderCatalogCard(item); });
-        
-        if (loadMoreBtn) {
-            if (currentPage < data.total_pages) loadMoreBtn.style.display = 'block'; 
-            else loadMoreBtn.style.display = 'none';
-        }
-        currentPage++;
-    } catch (e) {
-        if (!isLoadMore && catalogGrid) catalogGrid.innerHTML = '<p style="color:var(--rust); font-weight:800; grid-column:1/-1; text-align:center;">Ошибка загрузки 😢</p>';
-    } finally { 
-        isLoading = false; 
-        if (loadMoreBtn) { loadMoreBtn.textContent = 'ЗАГРУЗИТЬ ЕЩЕ'; loadMoreBtn.disabled = false; }
+        const url = filter === 'search'
+            ? `https://api.themoviedb.org/3/search/multi?${new URLSearchParams({ api_key: TMDB_API_KEY, language: 'ru-RU', query, page })}`
+            : getEndpoint(filter, page);
+        const data = await fetchJson(url, { signal: catalogController.signal });
+        if (request !== catalogRequest) return;
+        if (!Array.isArray(data.results)) throw new Error('Неверный ответ каталога');
+        if (!isLoadMore) catalogGrid.replaceChildren();
+        data.results.filter(item => !item.media_type || ['movie', 'tv'].includes(item.media_type))
+            .forEach(item => renderCatalogCard(item, filter));
+        if (!catalogGrid.children.length) catalogGrid.textContent = 'Ничего не найдено';
+        currentPage = page + 1;
+        loadMoreBtn.style.display = page < Math.min(data.total_pages || 1, 500) ? 'block' : 'none';
+    } catch (error) {
+        if (request !== catalogRequest || error.name === 'AbortError') return;
+        if (!isLoadMore) catalogGrid.textContent = 'Не удалось загрузить каталог. Повторите поиск или выберите категорию.';
+        else showToast('Не удалось загрузить следующую страницу');
+    } finally {
+        if (request === catalogRequest) { isLoading = false; loadMoreBtn.disabled = false; loadMoreBtn.textContent = 'ЗАГРУЗИТЬ ЕЩЁ'; }
     }
 }
 
 if (filterBtns.length > 0) {
-    filterBtns.forEach(btn => { btn.addEventListener('click', () => { filterBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentFilter = btn.getAttribute('data-type'); loadCatalog(); }); });
+    filterBtns.forEach(btn => { btn.addEventListener('click', () => { filterBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); clearTimeout(searchTimer); searchInput.value = ''; searchQuery = ''; currentFilter = btn.getAttribute('data-type'); loadCatalog(); }); });
 }
 
 if (loadMoreBtn) {
     loadMoreBtn.addEventListener('click', () => loadCatalog(true));
 }
 
-function renderCatalogCard(m) {
+function renderCatalogCard(m, filter = currentFilter) {
     if (!catalogGrid) return;
 
     const title = m.title || m.name;
-    const mediaType = m.media_type || (currentFilter === 'movie' ? 'movie' : 'tv');
-    const posterUrl = `https://image.tmdb.org/t/p/w300${m.poster_path}`;
+    const mediaType = m.media_type || (filter === 'movie' ? 'movie' : 'tv');
+    const poster = posterUrl(`https://image.tmdb.org/t/p/w300${m.poster_path}`);
     const genres = m.genre_ids ? m.genre_ids.map(id => GENRE_MAP[id]).filter(Boolean).slice(0, 2).join(', ') : 'Жанр неизвестен';
 
     const card = document.createElement('div');
     card.className = 'catalog-card';
     card.innerHTML = `
         <div class="cat-poster-wrapper">
-            <img src="${posterUrl}" class="cat-poster" loading="lazy" alt="${title}">
+            <img src="${escapeHtml(poster)}" class="cat-poster" loading="lazy" alt="${escapeHtml(title)}">
         </div>
-        <div class="cat-info"><div class="cat-title" title="${title}">${title}</div><div class="cat-genres">${genres}</div></div>
+        <div class="cat-info"><div class="cat-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div><div class="cat-genres">${escapeHtml(genres)}</div></div>
     `;
 
     const wrapper = card.querySelector('.cat-poster-wrapper');
@@ -125,13 +130,16 @@ function renderCatalogCard(m) {
 async function openDetailModal(id, mediaType) {
     if (!detailModal) return;
     
+    const request = ++detailRequest;
     detailModal.classList.remove('hidden');
+    ['detail-play-btn', 'detail-add-btn', 'detail-watch-btn'].forEach(id => document.getElementById(id).disabled = true);
     const titleEl = document.getElementById('detail-title');
     if (titleEl) titleEl.textContent = 'Загрузка...';
     
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_API_KEY}&language=ru-RU`);
-        const data = await res.json();
+        const res = await fetchJson(`https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_API_KEY}&language=ru-RU`);
+        const data = res;
+        if (request !== detailRequest) return;
         const title = data.title || data.name;
         
         const backdrop = document.getElementById('detail-backdrop');
@@ -160,42 +168,38 @@ async function openDetailModal(id, mediaType) {
         document.getElementById('detail-play-btn').onclick = () => playTrailer(id, mediaType);
         document.getElementById('detail-add-btn').onclick = () => addToRoulette(title);
         
-        // КНОПКА СМОТРЕТЬ (передаем флаг isAnime)
         document.getElementById('detail-watch-btn').onclick = () => {
-            const imdbId = data.imdb_id || data.external_ids?.imdb_id || '';
-            const isAnime = data.original_language === 'ja' || (data.genres && data.genres.some(g => g.id === 16));
-            window.location.href = `watch.html?id=${id}&imdb=${imdbId}&type=${mediaType}&title=${encodeURIComponent(title)}&isAnime=${isAnime}`;
+            window.location.href = watchUrl(id, mediaType, title, data.imdb_id || '');
         };
+        ['detail-play-btn', 'detail-add-btn', 'detail-watch-btn'].forEach(id => document.getElementById(id).disabled = false);
     } catch (e) { 
-        if (titleEl) titleEl.textContent = 'Ошибка загрузки'; 
+        if (request === detailRequest && titleEl) titleEl.textContent = 'Ошибка загрузки';
     }
 }
 
 async function playTrailer(id, mediaType) {
+    const request = detailRequest;
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${TMDB_API_KEY}&language=ru-RU`);
-        const data = await res.json();
-        let video = data.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-        if (!video) {
-            const resEn = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
-            const dataEn = await resEn.json();
-            video = dataEn.results.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-        }
-        if (video) { 
-            if (trailerIframe) trailerIframe.src = `https://www.youtube.com/embed/${video.key}?autoplay=1`; 
-            if (trailerModal) trailerModal.classList.remove('hidden'); 
-        } 
-        else { showToast('Трейлер не найден 😢'); }
-    } catch (err) { showToast('Ошибка загрузки'); }
+        const url = await trailerUrl(id, mediaType);
+        if (request !== detailRequest || detailModal.classList.contains('hidden')) return;
+        trailerIframe.src = url;
+        trailerModal.classList.remove('hidden');
+    } catch (error) { showToast(error.message); }
 }
 
-function addToRoulette(title) {
-    let list = localStorage.getItem('rouletteList') || '';
-    let movies = list.split('\n').map(s => s.trim()).filter(Boolean);
-    if (movies.includes(title)) return showToast('Уже в списке!');
-    movies.push(title);
-    localStorage.setItem('rouletteList', movies.join('\n'));
-    showToast(`"${title}" добавлен!`);
+async function addToRoulette(title) {
+    const button = document.getElementById('detail-add-btn');
+    button.disabled = true;
+    try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) throw new Error('Вход не выполнен');
+        const movies = (await loadRoulette(uid)).split('\n').map(value => value.trim()).filter(Boolean);
+        if (movies.includes(title)) return showToast('Уже в списке!');
+        movies.push(title);
+        await saveRoulette(uid, movies.join('\n'));
+        showToast(`«${title}» добавлен!`);
+    } catch { showToast('Не удалось синхронизировать список. Попробуйте ещё раз.'); }
+    finally { button.disabled = false; }
 }
 
 // ==========================================
@@ -205,45 +209,16 @@ const searchInput = document.getElementById('catalog-search');
 let searchTimer;
 
 if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
+    searchInput.addEventListener('input', () => {
         clearTimeout(searchTimer);
-        const query = e.target.value.trim();
-        
-        searchTimer = setTimeout(() => {
-            if (query.length > 0) {
-                currentFilter = 'search';
-                loadSearchResults(query);
-            } else {
-                currentFilter = 'trending';
-                filterBtns.forEach(b => b.classList.remove('active'));
-                const trendingBtn = document.querySelector('.cat-filter-btn[data-type="trending"]');
-                if (trendingBtn) trendingBtn.classList.add('active');
-                loadCatalog();
-            }
-        }, 500);
+        // Отменяем ответ сразу после ввода, до окончания задержки поиска.
+        catalogController?.abort();
+        catalogRequest++;
+        isLoading = false;
+        loadMoreBtn.disabled = true;
+        searchQuery = searchInput.value.trim();
+        currentFilter = searchQuery ? 'search' : 'trending';
+        filterBtns.forEach(button => button.classList.toggle('active', button.dataset.type === currentFilter));
+        searchTimer = setTimeout(() => loadCatalog(), 350);
     });
-}
-
-async function loadSearchResults(query) {
-    if (isLoading || !catalogGrid) return; isLoading = true;
-    catalogGrid.innerHTML = '<div class="catalog-loader">ПОИСК... ⏳</div>'; 
-    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-
-    try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`);
-        const data = await res.json();
-        
-        catalogGrid.innerHTML = '';
-        const results = data.results.filter(item => item.media_type === 'movie' || item.media_type === 'tv');
-        
-        if (results.length === 0) {
-            catalogGrid.innerHTML = '<p style="color:var(--rust); font-weight:800; grid-column:1/-1; text-align:center;">Ничего не найдено 😢</p>';
-        } else {
-            results.forEach(item => { if (item.poster_path) renderCatalogCard(item); });
-        }
-    } catch (e) {
-        catalogGrid.innerHTML = '<p style="color:var(--rust); font-weight:800; grid-column:1/-1; text-align:center;">Ошибка поиска</p>';
-    } finally { 
-        isLoading = false; 
-    }
 }

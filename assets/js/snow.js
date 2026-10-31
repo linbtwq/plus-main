@@ -1,5 +1,7 @@
 const canvas = document.getElementById('snow-canvas');
-if (canvas) {
+if (canvas && canvas.getContext('2d')) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let animationId = null;
     const ctx = canvas.getContext('2d');
     let W, H;
     let flakes = [];
@@ -76,9 +78,17 @@ if (canvas) {
     for (let i = 0; i < count; i++) flakes.push(new Flake());
 
     function loop() {
+        animationId = null;
+        if (document.hidden || reducedMotion.matches) { ctx.clearRect(0, 0, W, H); return; }
         ctx.clearRect(0, 0, W, H);
         for (const f of flakes) { f.update(); f.draw(); }
-        requestAnimationFrame(loop);
+        animationId = requestAnimationFrame(loop);
     }
-    loop();
+    function restart() {
+        if (animationId !== null) cancelAnimationFrame(animationId);
+        loop();
+    }
+    document.addEventListener('visibilitychange', restart);
+    reducedMotion.addEventListener('change', restart);
+    restart();
 }

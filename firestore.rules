@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(data) {
+      return request.auth != null && data.userId == request.auth.uid;
+    }
+    function stat(value, max, duo) {
+      // Парные оценки храним в прежнем формате, проверяя обе половины.
+      return value is string && (duo
+        ? (max == 10
+          ? value.matches('([0-9]\\.[0-9]|10\\.0)/([0-9]\\.[0-9]|10\\.0)')
+          : value.matches('([0-4]\\.[0-9]|5\\.0)/([0-4]\\.[0-9]|5\\.0)'))
+        : (max == 10 ? value.matches('[0-9]\\.[0-9]|10\\.0') : value.matches('[0-4]\\.[0-9]|5\\.0')));
+    }
+    function validMovie(d) {
+      return d.keys().hasAll(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
+        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
+        && d.userId is string && d.schemaVersion == 2
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 500
+        && d.score is number && d.score >= 0 && d.score <= 10
+        && d.type in ['movie', 'series', 'anime'] && d.mediaType in ['movie', 'tv']
+        && d.tmdbId is int && d.tmdbId > 0 && d.tmdbId <= 9999999999
+        && d.poster is string && (d.poster == '' || d.poster.matches('https://image[.]tmdb[.]org/t/p/w500/[A-Za-z0-9._-]+'))
+        && d.genres is string && d.genres.size() <= 500
+        && d.authorName is string && d.authorName.size() <= 200
+        && (d.authorPhoto == null || (d.authorPhoto is string && d.authorPhoto.size() <= 2000))
+        && d.timestamp is timestamp && d.date is string && d.date.size() <= 40
+        && (d.review == null || (d.review is string && d.review.size() <= 10000))
+        && d.isDuo is bool && d.stats is map
+        && d.stats.keys().hasAll(['script', 'actors', 'directing', 'chars', 'idea', 'atmosphere', 'impression'])
+        && d.stats.keys().hasOnly(['script', 'actors', 'directing', 'chars', 'idea', 'atmosphere', 'impression'])
+        && stat(d.stats.script, 10, d.isDuo) && stat(d.stats.actors, 10, d.isDuo)
+        && stat(d.stats.directing, 10, d.isDuo) && stat(d.stats.chars, 10, d.isDuo)
+        && stat(d.stats.idea, 10, d.isDuo) && stat(d.stats.atmosphere, 5, d.isDuo)
+        && stat(d.stats.impression, 5, d.isDuo);
+    }
+    match /movies/{movieId} {
+      allow read, delete: if owner(resource.data);
+      allow create: if owner(request.resource.data) && validMovie(request.resource.data)
+        && request.resource.data.timestamp == request.time;
+      allow update: if owner(resource.data) && owner(request.resource.data)
+        && request.resource.data.userId == resource.data.userId
+        && validMovie(request.resource.data)
+        && request.resource.data.timestamp == resource.data.timestamp;
+    }
+    match /roulette/{userId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['text'])
+        && request.resource.data.text is string && request.resource.data.text.size() <= 100000;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
