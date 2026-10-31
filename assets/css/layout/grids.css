@@ -40,3 +40,13 @@
 .cat-filter-btn { background: var(--surface); border: 2px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: 0.2s; white-space: nowrap; }
 .cat-filter-btn:hover { color: var(--paper); border-color: var(--rust); }
 .cat-filter-btn.active { background: var(--rust); color: var(--snow); border-color: var(--ink); box-shadow: var(--sh-hard); }
+/* Лента не сжимает жанры и остаётся доступной на мыши и сенсорном экране. */
+.genre-navigation { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.genre-navigation .genre-rail { flex: 1; min-width: 0; overscroll-behavior-x: contain; }
+.genre-rail .rail-chip { flex: 0 0 auto; }
+.genre-scroll-btn { flex: 0 0 36px; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-darker); color: var(--paper); font-size: 1.7rem; cursor: pointer; }
+.genre-scroll-btn:disabled { opacity: .3; cursor: default; }
+.archive-pagination { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 32px; }
+.archive-pagination [role="status"] { color: var(--paper-dark); text-align: center; }
+.archive-pagination [role="status"]:empty { display: none; }
+.archive-pagination .btn-retro:disabled { opacity: .6; cursor: wait; transform: none; }

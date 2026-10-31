@@ -15,6 +15,8 @@ export const where = (...args) => ({where:args}), orderBy = (...args) => ({order
 export const query = (ref, ...constraints) => ({...ref, constraints});
 export const getDocs = async q => {
  window.__queries = [...(window.__queries || []), q];
+ await new Promise(resolve => setTimeout(resolve, window.__archiveDelay || 0));
+ if (window.__archiveFailOnce) {window.__archiveFailOnce=false; throw new Error('Проверка повторной загрузки');}
  const cursor = q.constraints.find(c => c.cursor)?.cursor;
  let data = window.__movies || [];
  if(cursor) data = data.slice(data.findIndex(d => d.id === cursor)+1);
@@ -89,6 +91,53 @@ try {
         await page.waitForURL('**/watch.html?**');
         assert.equal(new URL(page.url()).searchParams.get('type'), 'tv');
         assert.equal(new URL(page.url()).searchParams.get('id'), '123');
+        await page.close();
+    });
+    await test('Архив показывает скелетоны и прокручивает жанры колёсиком, стрелками и клавиатурой', async () => {
+        const page = await context.newPage();
+        await page.setViewportSize({width:1000,height:800});
+        await page.addInitScript(() => {
+            window.__archiveDelay = 500;
+            window.__movies = Array.from({length:49}, (_,i)=>({id:'s'+i,userId:'owner',title:'Фильм '+i,score:7,genres:'Жанр '+String(i).padStart(2,'0'),type:'movie'}));
+        });
+        await page.goto(`${base}/pages/list.html`);
+        await page.waitForSelector('.skeleton');
+        assert.equal(await page.locator('#movies-grid').getAttribute('aria-busy'), 'true');
+        await page.waitForFunction(() => document.querySelectorAll('.movie-card:not(.skeleton)').length === 48);
+        assert.equal(await page.locator('.skeleton').count(), 0);
+        assert.equal(await page.getByText('Поиск, фильтры и статистика учитывают загруженные записи.', {exact:false}).count(), 0);
+        const rail = page.locator('#genre-filters');
+        await rail.scrollIntoViewIfNeeded();
+        const box = await rail.boundingBox();
+        await page.mouse.move(box.x+box.width/2, box.y+box.height/2);
+        await page.mouse.wheel(0,250);
+        await page.waitForFunction(() => document.getElementById('genre-filters').scrollLeft > 100);
+        const before = await rail.evaluate(element=>element.scrollLeft);
+        await page.locator('#genre-next').click();
+        await page.waitForFunction(value => document.getElementById('genre-filters').scrollLeft > value, before);
+        await rail.focus();
+        await page.keyboard.press('Home');
+        await page.waitForFunction(() => document.getElementById('genre-filters').scrollLeft === 0);
+        await page.locator('#archive-load-more').click();
+        await page.waitForSelector('.skeleton');
+        assert.equal(await page.locator('.movie-card:not(.skeleton)').count(),48);
+        assert.equal(await page.locator('#archive-load-more').isDisabled(),true);
+        await page.waitForFunction(() => document.querySelectorAll('.movie-card:not(.skeleton)').length === 49);
+        assert.equal(await page.locator('#archive-load-more').isVisible(),false);
+        await page.close();
+    });
+    await test('Кнопка скрыта при ровно одной странице, а ошибку загрузки можно повторить', async () => {
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            window.__archiveFailOnce = true;
+            window.__movies = Array.from({length:48}, (_,i)=>({id:'e'+i,userId:'owner',title:'Тест',score:7,genres:'Драма'}));
+        });
+        await page.goto(`${base}/pages/list.html`);
+        await page.getByRole('button',{name:'Повторить загрузку',exact:true}).click();
+        await page.waitForFunction(() => document.querySelectorAll('.movie-card:not(.skeleton)').length === 48);
+        assert.equal(await page.locator('#archive-load-more').isVisible(),false);
+        assert.equal(await page.locator('.skeleton').count(),0);
+        assert.equal(await page.locator('#archive-load-status').textContent(),'');
         await page.close();
     });
     await test('Каталог сохраняет последний запрос и пагинацию поиска', async () => {

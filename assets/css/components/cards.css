@@ -36,3 +36,11 @@
 .color-lime { color: var(--c-lime); }
 .color-green { color: var(--c-green); }
 .color-gold { color: var(--c-gold); }
+/* Скелетоны повторяют геометрию карточек без скачков при загрузке. */
+.movie-card.skeleton { cursor: default; pointer-events: none; }
+.movie-card.skeleton:hover { transform: none; }
+.skeleton-surface { position: relative; overflow: hidden; background: rgba(120, 182, 219, .12); }
+.skeleton-surface::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(233, 240, 248, .14) 50%, transparent 80%); transform: translateX(-100%); animation: skeleton-shimmer 1.6s ease-in-out infinite; opacity: 1; }
+.skeleton-line { height: 18px; width: 82%; border-radius: 5px; margin-bottom: 10px; }
+.skeleton-line-short { height: 12px; width: 55%; margin-bottom: 0; }
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }

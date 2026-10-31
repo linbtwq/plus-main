@@ -3,15 +3,25 @@ import { escapeHtml, posterUrl, resolveMedia, watchUrl, trailerUrl } from './sha
 
 let currentUser = null, loadedMovies = [], lastDocument = null, hasMore = true, loading = false;
 const PAGE_SIZE = 48;
-const moreButton = document.createElement('button');
-moreButton.className = 'btn-retro';
-moreButton.textContent = 'Загрузить ещё';
-moreButton.hidden = true;
-document.getElementById('movies-grid').after(moreButton);
-const archiveNotice = document.createElement('p');
-archiveNotice.textContent = 'Поиск, фильтры и статистика учитывают загруженные записи. Для остальных нажмите «Загрузить ещё».';
-document.getElementById('movies-grid').before(archiveNotice);
-moreButton.addEventListener('click', () => fetchMovies(true));
+const moreButton = document.getElementById('archive-load-more');
+const grid = document.getElementById('movies-grid');
+const loadStatus = document.getElementById('archive-load-status');
+moreButton.addEventListener('click', () => fetchMovies(loadedMovies.length > 0));
+
+// Показываем силуэты карточек до получения ответа, сохраняя размер сетки.
+function showSkeletons(append = false) {
+    if (!append) grid.replaceChildren();
+    grid.querySelectorAll('.archive-empty').forEach(element => element.remove());
+    for (let index = 0; index < 8; index++) {
+        const card = document.createElement('div');
+        card.className = 'movie-card skeleton';
+        card.setAttribute('aria-hidden', 'true');
+        card.innerHTML = '<div class="card-frame skeleton-surface"></div><div class="card-caption"><div class="skeleton-line skeleton-surface"></div><div class="skeleton-line skeleton-line-short skeleton-surface"></div></div>';
+        grid.appendChild(card);
+    }
+    grid.setAttribute('aria-busy', 'true');
+}
+showSkeletons();
 
 onAuthStateChanged(auth, (user) => { 
     if (user) { currentUser = user; document.getElementById('nav-user-name').textContent = user.displayName; if(user.photoURL) document.getElementById('nav-user-avatar').src = user.photoURL; fetchMovies(); } 
@@ -24,13 +34,16 @@ async function fetchMovies(append = false) {
     if (loading || !currentUser || (append && !hasMore)) return;
     loading = true;
     moreButton.disabled = true;
-    const grid = document.getElementById('movies-grid');
-    if (!append) { loadedMovies = []; lastDocument = null; grid.textContent = 'Загрузка…'; }
+    moreButton.textContent = 'Загрузка…';
+    loadStatus.textContent = '';
+    if (!append) { loadedMovies = []; lastDocument = null; }
+    showSkeletons(append);
     try {
         const constraints = [where('userId', '==', currentUser.uid), orderBy('timestamp', 'desc')];
         if (append && lastDocument) constraints.push(startAfter(lastDocument));
-        const snap = await getDocs(query(collection(db, 'movies'), ...constraints, limit(PAGE_SIZE)));
-        snap.forEach(record => {
+        const snap = await getDocs(query(collection(db, 'movies'), ...constraints, limit(PAGE_SIZE + 1)));
+        const records = snap.docs.slice(0, PAGE_SIZE);
+        records.forEach(record => {
             const data = record.data();
             loadedMovies.push({ ...data, id: record.id,
                 title: typeof data.title === 'string' ? data.title : 'Без названия',
@@ -38,15 +51,23 @@ async function fetchMovies(append = false) {
                 score: Number.isFinite(Number(data.score)) ? Math.min(10, Math.max(0, Number(data.score))) : 0
             });
         });
-        lastDocument = snap.docs.at(-1) || lastDocument;
-        hasMore = snap.size === PAGE_SIZE;
+        lastDocument = records.at(-1) || lastDocument;
+        hasMore = snap.size > PAGE_SIZE;
         moreButton.hidden = !hasMore;
+        loading = false;
         updateCounters(loadedMovies); renderGenres(loadedMovies); applyFiltersAndSort();
     } catch (error) {
         console.error('Ошибка загрузки архива:', error);
-        if (!append) grid.textContent = 'Не удалось загрузить архив. Обновите страницу.';
-        else alert('Не удалось загрузить следующую страницу. Попробуйте ещё раз.');
-    } finally { loading = false; moreButton.disabled = false; }
+        loadStatus.textContent = 'Не удалось загрузить записи. Попробуйте ещё раз.';
+        moreButton.hidden = false;
+        moreButton.textContent = 'Повторить загрузку';
+    } finally {
+        loading = false;
+        grid.querySelectorAll('.skeleton').forEach(element => element.remove());
+        grid.setAttribute('aria-busy', 'false');
+        moreButton.disabled = false;
+        if (!loadStatus.textContent) moreButton.textContent = 'Загрузить ещё';
+    }
 }
 
 function updateCounters(movies) {
@@ -58,7 +79,7 @@ function updateCounters(movies) {
 
 function render(movies) {
     const grid = document.getElementById('movies-grid'); grid.innerHTML = '';
-    if (movies.length === 0) return grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:var(--ink-mid); font-weight:800; padding:50px;">НИЧЕГО НЕ НАЙДЕНО 📂</p>';
+    if (movies.length === 0) return grid.innerHTML = '<p class="archive-empty" style="grid-column:1/-1; text-align:center; color:var(--ink-mid); font-weight:800; padding:50px;">НИЧЕГО НЕ НАЙДЕНО 📂</p>';
 
     movies.forEach(m => {
         const isOwner = currentUser && m.userId === currentUser.uid;
@@ -185,6 +206,7 @@ function applyFiltersAndSort() {
     if (sort === 'high') curr.sort((a,b) => b.score - a.score); else if (sort === 'low') curr.sort((a,b) => a.score - b.score); else curr.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
     
     render(curr);
+    if (loading) showSkeletons(true);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -200,3 +222,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.querySelectorAll('.type-btn').forEach(btn => btn.addEventListener('click', (e) => { document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); applyFiltersAndSort(); }));
 });
+// Колёсико, тачпад, клавиатура и стрелки прокручивают одну ленту жанров.
+const genreRail = document.getElementById('genre-filters');
+const genrePrevious = document.getElementById('genre-previous');
+const genreNext = document.getElementById('genre-next');
+function updateGenreScroll() {
+    const max = genreRail.scrollWidth - genreRail.clientWidth;
+    genrePrevious.hidden = genreNext.hidden = max <= 1;
+    genrePrevious.disabled = genreRail.scrollLeft <= 1;
+    genreNext.disabled = genreRail.scrollLeft >= max - 1;
+}
+function scrollGenres(direction) {
+    genreRail.scrollBy({ left: direction * Math.max(160, genreRail.clientWidth * 0.7), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+}
+genrePrevious.addEventListener('click', () => scrollGenres(-1));
+genreNext.addEventListener('click', () => scrollGenres(1));
+genreRail.addEventListener('scroll', updateGenreScroll, { passive: true });
+genreRail.addEventListener('wheel', event => {
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    const before = genreRail.scrollLeft;
+    const delta = event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? genreRail.clientWidth : 1);
+    genreRail.scrollLeft += delta;
+    if (genreRail.scrollLeft !== before) event.preventDefault();
+}, { passive: false });
+genreRail.addEventListener('keydown', event => {
+    if (event.target !== genreRail || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Home') genreRail.scrollLeft = 0;
+    else if (event.key === 'End') genreRail.scrollLeft = genreRail.scrollWidth;
+    else scrollGenres(event.key === 'ArrowRight' ? 1 : -1);
+});
+new ResizeObserver(updateGenreScroll).observe(genreRail);
+new MutationObserver(updateGenreScroll).observe(genreRail, { childList: true });
+updateGenreScroll();

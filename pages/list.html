@@ -64,10 +64,18 @@
                     </div>
                 </div>
             </div>
-            <div class="genre-rail" id="genre-filters"></div>
+            <div class="genre-navigation">
+                <button type="button" id="genre-previous" class="genre-scroll-btn" aria-label="Предыдущие жанры" aria-controls="genre-filters" hidden>‹</button>
+                <div class="genre-rail" id="genre-filters" tabindex="0" role="group" aria-label="Фильтры по жанрам"></div>
+                <button type="button" id="genre-next" class="genre-scroll-btn" aria-label="Следующие жанры" aria-controls="genre-filters" hidden>›</button>
+            </div>
         </div>
 
-        <div id="movies-grid" class="cards-deck"></div>
+        <div id="movies-grid" class="cards-deck" aria-label="Фильмы в архиве" aria-busy="true"></div>
+        <div class="archive-pagination">
+            <p id="archive-load-status" role="status" aria-live="polite"></p>
+            <button type="button" id="archive-load-more" class="btn-retro" hidden>Загрузить ещё</button>
+        </div>
     </main>
 
     <nav class="bottom-dock">
