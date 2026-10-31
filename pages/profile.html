@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plus.plus | Профиль и друзья</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="icon" href="../assets/img/favicon.png">
+</head>
+<body class="profile-body">
+
+    <header class="top-deck">
+        <div class="deck-brand">
+            <button class="menu-trigger" id="burger-btn" aria-label="Меню"><span></span><span></span></button>
+            <a href="../index.html" class="brand-text">plus<span>.</span>plus</a>
+        </div>
+        <a href="profile.html" class="profile-home-link">Мой профиль</a>
+    </header>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="side-logo">plus<span>.</span>plus</div>
+        <nav class="side-nav">
+            <a href="catalog.html" class="side-link">Каталог</a>
+            <a href="rate.html" class="side-link">Оценить</a>
+            <a href="list.html" class="side-link">Архив</a>
+            <a href="plans.html" class="side-link">♡ Хочу посмотреть</a>
+            <a href="roulette.html" class="side-link">Рулетка</a>
+            <a href="profile.html" class="side-link active">Профиль и друзья</a>
+        </nav>
+        <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
+    </aside>
+    <main class="profile-page">
+        <p id="page-heading" class="profile-eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО</p>
+        <p id="profile-status" class="profile-status" role="status" aria-live="polite">Загрузка профиля…</p>
+        <button id="profile-retry" class="profile-small-btn" hidden>Повторить загрузку</button>
+        <section id="profile-card" class="profile-hero" hidden aria-labelledby="profile-name">
+            <div class="profile-cover" id="profile-cover" aria-hidden="true"><span class="cover-wordmark">plus.plus</span><span class="cover-number"></span></div>
+            <div class="profile-identity">
+                <div class="profile-avatar" id="profile-avatar" aria-hidden="true"></div>
+                <div class="profile-hero-actions">
+                    <button id="edit-profile" class="profile-small-btn" hidden>Редактировать профиль</button>
+                    <button id="share-profile" class="profile-small-btn profile-icon-button" aria-label="Поделиться профилем" title="Поделиться профилем">↗</button>
+                    <button id="compare-friend" class="profile-small-btn" hidden>Сравнить оценки</button>
+                    <button id="friend-action" class="profile-primary" hidden></button>
+                </div>
+                <div class="profile-intro">
+                    <span class="profile-member-label">ПРОФИЛЬ</span>
+                    <h1 id="profile-name"></h1>
+                    <p id="profile-bio" class="profile-bio"></p>
+                    <div id="profile-own-meta" class="profile-meta" hidden><span><strong id="profile-friends-total">0</strong> друзей</span><span class="profile-meta-dot">·</span><a href="list.html">Мой киноархив ↗</a></div>
+                </div>
+            </div>
+        </section>
+        <section id="profile-ratings" class="profile-ratings" hidden aria-labelledby="ratings-heading">
+            <div class="profile-ratings-heading"><h2 id="ratings-heading">Оценки</h2><button id="ratings-refresh" type="button" class="profile-small-btn" hidden>Обновить</button></div>
+            <div id="ratings-controls" class="profile-ratings-controls" hidden>
+                <input id="ratings-search" type="search" placeholder="Найти фильм…" aria-label="Поиск по загруженным оценкам">
+                <select id="ratings-type" aria-label="Тип тайтла"><option value="all">Все тайтлы</option><option value="movie">Фильмы</option><option value="series">Сериалы</option><option value="anime">Аниме</option></select>
+                <select id="ratings-sort" aria-label="Порядок оценок"><option value="new">Сначала новые</option><option value="high">Высокий балл</option><option value="low">Низкий балл</option></select>
+            </div>
+            <p id="profile-ratings-status" role="status" aria-live="polite"></p>
+            <div id="profile-ratings-grid" class="profile-ratings-grid" aria-busy="false"></div>
+            <div class="profile-ratings-pagination"><button id="profile-ratings-more" type="button" class="profile-small-btn" hidden>Загрузить ещё</button></div>
+        </section>
+        <section id="own-profile" class="profile-social" hidden aria-label="Друзья и заявки">
+            <div class="profile-social-toolbar">
+                <div class="profile-tabs" role="tablist" aria-label="Общение">
+                    <button id="friends-tab" role="tab" aria-selected="true" aria-controls="friends-panel" data-profile-tab="friends-panel">Друзья <span id="friends-count">0</span></button>
+                    <button id="requests-tab" role="tab" aria-selected="false" aria-controls="requests-panel" tabindex="-1" data-profile-tab="requests-panel">Заявки <span id="requests-count" hidden>0</span></button>
+                </div>
+                <button id="open-friend-search" class="profile-small-btn">＋ Добавить друга</button>
+            </div>
+            <div class="profile-list-status"><p id="friends-status" role="status" aria-live="polite">Загрузка друзей…</p><button id="retry-friends" class="profile-small-btn" hidden>Обновить список</button></div>
+            <div id="friends-panel" role="tabpanel" aria-labelledby="friends-tab"><ul id="friends-list" class="friends-list friends-grid"></ul></div>
+            <div id="requests-panel" role="tabpanel" aria-labelledby="requests-tab" hidden>
+                <div class="profile-request-columns">
+                    <section><h2>Входящие</h2><ul id="incoming-list" class="friends-list"></ul></section>
+                    <section><h2>Отправленные</h2><ul id="outgoing-list" class="friends-list"></ul></section>
+                </div>
+            </div>
+        </section>
+        <dialog id="rating-detail-dialog" class="profile-dialog rating-detail-dialog" aria-labelledby="rating-detail-title">
+            <button type="button" class="profile-dialog-close" data-close-dialog aria-label="Закрыть оценку">×</button>
+            <div class="rating-detail-header"><img id="rating-detail-poster" alt=""><div><p class="profile-eyebrow">ВПЕЧАТЛЕНИЯ О КИНО</p><h2 id="rating-detail-title"></h2><p id="rating-detail-genres"></p><p><strong id="rating-detail-score"></strong> <span>из 10</span></p><p id="rating-detail-date"></p></div></div>
+            <dl id="rating-detail-stats"></dl><h3>Отзыв</h3><p id="rating-detail-review"></p>
+        </dialog>
+        <dialog id="edit-profile-dialog" class="profile-dialog" aria-labelledby="edit-heading">
+            <button type="button" class="profile-dialog-close" data-close-dialog aria-label="Закрыть редактирование">×</button>
+            <p class="profile-eyebrow">ПРОФИЛЬ</p><h2 id="edit-heading">Редактировать профиль</h2>
+            <form id="profile-form">
+                <div class="profile-image-editor">
+                    <div class="profile-banner-preview" id="edit-banner-preview"><span>Баннер профиля</span></div>
+                    <div class="profile-avatar profile-avatar-preview" id="edit-avatar-preview" aria-hidden="true"></div>
+                    <div class="profile-image-actions">
+                        <label class="profile-small-btn profile-upload-label" for="profile-avatar-file">Выбрать аватар</label>
+                        <input id="profile-avatar-file" type="file" accept="image/jpeg,image/png,image/webp" class="profile-file-input">
+                        <button id="remove-profile-avatar" type="button" class="profile-small-btn">Убрать аватар</button>
+                        <label class="profile-small-btn profile-upload-label" for="profile-banner-file">Выбрать баннер</label>
+                        <input id="profile-banner-file" type="file" accept="image/jpeg,image/png,image/webp" class="profile-file-input">
+                        <button id="remove-profile-banner" type="button" class="profile-small-btn">Убрать баннер</button>
+                    </div>
+                    <p class="profile-image-hint">JPG, PNG или WebP, до 10 МБ. Аватар обрезается по центру до квадрата, баннер — до 3:1.</p>
+                    <p id="profile-image-status" role="status" aria-live="polite"></p>
+                </div>
+                <label for="profile-display-name">Имя</label><input id="profile-display-name" required maxlength="60" autocomplete="nickname">
+                <label for="profile-description">О себе</label><textarea id="profile-description" maxlength="500" rows="4" placeholder="Какое кино любишь? Расскажи немного о себе."></textarea>
+                <p data-dialog-status role="status"></p>
+                <button type="submit" class="profile-primary" id="save-profile">Сохранить профиль</button>
+            </form>
+        </dialog>
+        <dialog id="friend-search-dialog" class="profile-dialog" aria-labelledby="add-heading">
+            <button type="button" class="profile-dialog-close" data-close-dialog aria-label="Закрыть поиск друзей">×</button>
+            <p class="profile-eyebrow">ДРУЗЬЯ</p><h2 id="add-heading">Найти друга</h2>
+            <p class="profile-hint">Вставь код или ссылку на профиль друга.</p>
+            <form id="friend-search-form"><label for="friend-code">Код или ссылка</label><input id="friend-code" required maxlength="2048" autocomplete="off" placeholder="Код профиля"><button type="submit" class="profile-primary" id="find-friend">Найти профиль</button></form>
+            <div id="friend-search-result" class="friend-search-result" aria-live="polite"></div><p data-dialog-status role="status"></p>
+        </dialog>
+        <dialog id="share-profile-dialog" class="profile-dialog" aria-labelledby="share-heading">
+            <button type="button" class="profile-dialog-close" data-close-dialog aria-label="Закрыть приглашение">×</button>
+            <p class="profile-eyebrow">ПОДЕЛИТЬСЯ</p><h2 id="share-heading">Поделиться профилем</h2>
+            <p class="profile-hint">Отправь другу ссылку, чтобы он нашёл тебя в киноклубе.</p>
+            <button id="copy-profile-link" type="button" class="profile-primary">Скопировать ссылку</button>
+            <div class="profile-share-code"><span>Или используй код</span><code id="profile-code"></code><button id="copy-profile-code" type="button" class="profile-small-btn">Скопировать код</button></div><p data-dialog-status role="status"></p>
+        </dialog>
+        <dialog id="compare-dialog" class="profile-dialog comparison-dialog"><div class="section-topline"><h2>Ваши оценки</h2><button id="compare-close" data-close-dialog class="profile-small-btn" type="button" aria-label="Закрыть сравнение">✕</button></div><p id="compare-metrics" class="comparison-metrics"></p><div class="plans-controls"><input id="compare-search" type="search" placeholder="Найти общий фильм" aria-label="Поиск общих фильмов"><select id="compare-sort" aria-label="Сортировка сравнения"><option value="similar">Ближе всего по оценке</option><option value="difference">Самые разные впечатления</option><option value="together">Обоим понравилось</option></select></div><p id="compare-status" role="status"></p><div id="compare-results"></div></dialog>
+    </main>
+    <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/profile.js"></script>
+</body>
+</html>

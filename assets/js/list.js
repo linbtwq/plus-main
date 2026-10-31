@@ -1,3 +1,4 @@
+import { getProfile, safeAvatar } from './profile-store.js';
 import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, deleteDoc, doc, signOut, limit, where, startAfter } from './firebase-init.js';
 import { escapeHtml, posterUrl, resolveMedia, watchUrl, trailerUrl } from './shared.js';
 
@@ -23,9 +24,21 @@ function showSkeletons(append = false) {
 }
 showSkeletons();
 
-onAuthStateChanged(auth, (user) => { 
-    if (user) { currentUser = user; document.getElementById('nav-user-name').textContent = user.displayName; if(user.photoURL) document.getElementById('nav-user-avatar').src = user.photoURL; fetchMovies(); } 
-    else { window.location.href = '../index.html'; }
+onAuthStateChanged(auth, user => {
+    if (!user) { window.location.href = '../index.html'; return; }
+    currentUser = user;
+    document.getElementById('nav-user-name').textContent = user.displayName || 'Киноман';
+    if (user.photoURL) document.getElementById('nav-user-avatar').src = user.photoURL;
+    getProfile(user.uid).then(profile => {
+        if (profile && auth.currentUser?.uid === user.uid) {
+            document.getElementById('nav-user-name').textContent = profile.displayName;
+            const image = safeAvatar(profile.photoURL);
+            const avatar = document.getElementById('nav-user-avatar');
+            avatar.style.display = image ? '' : 'none';
+            if (image) avatar.src = image;
+        }
+    }).catch(() => {});
+    fetchMovies();
 });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
@@ -92,7 +105,7 @@ function render(movies) {
                 <div class="card-score-pill ${colorClass}">${Number(m.score).toFixed(1)}</div>
                 ${isOwner ? `<button class="card-del-btn" >✕</button>` : ''}
             </div>
-            <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div><div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div></div>
+            <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div><div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div><p class="archive-list-review">${escapeHtml(m.review||'Без отзыва')}</p><span class="archive-list-date">${escapeHtml(m.date||'')}</span></div>
         `;
         
         card.querySelector('.card-del-btn')?.addEventListener('click', event => { event.stopPropagation(); removeMovie(m.id); });
@@ -123,20 +136,29 @@ function render(movies) {
             if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; 
         });
         
+        card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',`Открыть оценку: ${m.title}`);card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openArchiveModal(m);}});
         card.addEventListener('click', () => openArchiveModal(m));
         grid.appendChild(card);
     });
 }
 
+let archiveReturnFocus;
 function openArchiveModal(m) {
+    archiveReturnFocus=document.activeElement;
     const modal = document.getElementById('archive-modal');
+    document.getElementById('am-edit-btn').href=`rate.html?${new URLSearchParams({edit:m.id})}`;
     document.getElementById('am-poster').src = posterUrl(m.poster);
     document.getElementById('am-title').textContent = m.title;
+    document.getElementById('am-participants').textContent=m.isDuo?'Совместная оценка':'Личная оценка';
+    document.getElementById('am-duo-legend').hidden=!m.isDuo||m.ratingMode==='quick';
     document.getElementById('am-genres').textContent = m.genres || 'Жанр неизвестен';
     document.getElementById('am-score').textContent = Number(m.score).toFixed(1);
     document.getElementById('am-date').textContent = m.date || 'Дата не указана';
     
     const stats = m.stats || {};
+    document.getElementById('am-criteria-heading').textContent=m.ratingMode==='quick'?'Способ оценки':'По критериям';
+    document.querySelector('.archive-modal-stats').hidden = m.ratingMode === 'quick';
+    document.getElementById('am-rating-mode').textContent = m.ratingMode === 'quick' ? (m.isDuo ? `Быстрая парная оценка: ${stats.script || ''}` : 'Быстрая оценка') : '';
     document.getElementById('am-script').textContent = stats.script || '?';
     document.getElementById('am-actors').textContent = stats.actors || '?';
     document.getElementById('am-directing').textContent = stats.directing || '?';
@@ -146,8 +168,15 @@ function openArchiveModal(m) {
     document.getElementById('am-impression').textContent = stats.impression || '?';
     
     const reviewBox = document.getElementById('am-review');
-    if (m.review) { reviewBox.textContent = `"${m.review}"`; reviewBox.classList.remove('hidden'); } 
+    if (m.review) { reviewBox.textContent = m.review; reviewBox.classList.remove('hidden'); }
     else { reviewBox.classList.add('hidden'); }
+    document.getElementById('am-review-section').hidden=!m.review;
+
+    for(const [key,max] of Object.entries({script:10,actors:10,directing:10,chars:10,idea:10,atmosphere:5,impression:5})){
+        const value=document.getElementById(`am-${key}`);const parts=String(stats[key]||'').split('/');value.replaceChildren();
+        for(const [index,part] of parts.slice(0,m.isDuo?2:1).entries()){const badge=document.createElement('span');badge.className=`archive-stat-value participant-${index+1}`;badge.textContent=part||'—';value.append(badge);}
+        const row=value.parentElement;row.style.setProperty('--stat-one',`${Math.max(0,Math.min(100,Number(parts[0])/max*100))||0}%`);row.style.setProperty('--stat-two',`${Math.max(0,Math.min(100,Number(parts[1])/max*100))||0}%`);row.classList.toggle('is-duo',!!m.isDuo);
+    }
 
     // Используем сохранённый идентификатор, а для старых записей выполняем поиск.
     document.getElementById('am-trailer-btn').onclick = async () => {
@@ -167,9 +196,19 @@ function openArchiveModal(m) {
     };
 
     modal.classList.remove('hidden');
+    document.body.classList.add('archive-detail-open');
+    document.getElementById('close-archive-modal').focus({preventScroll:true});
 }
 
-document.getElementById('close-archive-modal').onclick = () => document.getElementById('archive-modal').classList.add('hidden');
+function closeArchive(){document.getElementById('archive-modal').classList.add('hidden');document.body.classList.remove('archive-detail-open');archiveReturnFocus?.focus({preventScroll:true});}
+document.getElementById('close-archive-modal').onclick=closeArchive;
+document.getElementById('archive-modal').addEventListener('click',event=>{if(event.target.id==='archive-modal')closeArchive();});
+document.addEventListener('keydown',event=>{
+    if(!document.getElementById('trailer-modal').classList.contains('hidden')){if(event.key==='Escape')document.getElementById('close-trailer').click();return;}
+    if(document.getElementById('archive-modal').classList.contains('hidden'))return;
+    if(event.key==='Escape')closeArchive();
+    if(event.key==='Tab'){const nodes=Array.from(document.querySelectorAll('#archive-modal button,#archive-modal a[href]')).filter(el=>!el.disabled);const first=nodes[0],last=nodes.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
+});
 document.getElementById('close-trailer').onclick = () => { document.getElementById('trailer-modal').classList.add('hidden'); document.getElementById('trailer-iframe').src = ''; };
 
 async function removeMovie(id) {
@@ -222,16 +261,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.querySelectorAll('.type-btn').forEach(btn => btn.addEventListener('click', (e) => { document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); applyFiltersAndSort(); }));
 });
-// Колёсико, тачпад, клавиатура и стрелки прокручивают одну ленту жанров.
+
 const genreRail = document.getElementById('genre-filters');
 const genrePrevious = document.getElementById('genre-previous');
 const genreNext = document.getElementById('genre-next');
+
 function updateGenreScroll() {
     const max = genreRail.scrollWidth - genreRail.clientWidth;
     genrePrevious.hidden = genreNext.hidden = max <= 1;
     genrePrevious.disabled = genreRail.scrollLeft <= 1;
     genreNext.disabled = genreRail.scrollLeft >= max - 1;
 }
+
 function scrollGenres(direction) {
     genreRail.scrollBy({ left: direction * Math.max(160, genreRail.clientWidth * 0.7), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
 }
@@ -255,3 +296,12 @@ genreRail.addEventListener('keydown', event => {
 new ResizeObserver(updateGenreScroll).observe(genreRail);
 new MutationObserver(updateGenreScroll).observe(genreRail, { childList: true });
 updateGenreScroll();
+
+
+function setArchiveView(view){
+    grid.classList.toggle('archive-list',view==='list');
+    for(const mode of ['grid','list'])document.getElementById(`archive-view-${mode}`).setAttribute('aria-pressed',String(mode===view));
+    try{localStorage.setItem('archiveView',view);}catch{}
+}
+for(const mode of ['grid','list'])document.getElementById(`archive-view-${mode}`).addEventListener('click',()=>setArchiveView(mode));
+try{setArchiveView(localStorage.getItem('archiveView')==='list'?'list':'grid');}catch{}

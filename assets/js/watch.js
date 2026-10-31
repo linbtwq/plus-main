@@ -1,6 +1,9 @@
+import { createAnimePlayer } from './anime-player.js';
+import { readWatchHistory,saveWatchProgress } from './watch-history.js';
+import { playerUrl, resolvePlayerImdb, validImdb } from './player-sources.js';
 import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 
-onAuthStateChanged(auth, (user) => { if (!user) window.location.href = '../index.html'; });
+onAuthStateChanged(auth, (user) => { if (!user) window.location.href = '../index.html'; else startWatching(user); });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
 import { TMDB_API_KEY, validId, fetchJson } from './shared.js';
@@ -9,7 +12,6 @@ const titleEl = document.getElementById('movie-title');
 const playerContainer = document.getElementById('kodik-player');
 const controlsPanel = document.getElementById('player-controls-panel');
 const translationContainer = document.getElementById('translation-container');
-const translationGrid = document.getElementById('translation-grid');
 
 const sourceSelect = document.getElementById('source-select');
 const seasonSelect = document.getElementById('season-select');
@@ -20,46 +22,31 @@ const episodeGroup = document.getElementById('episode-group');
 const urlParams = new URLSearchParams(window.location.search);
 const rawId = urlParams.get('id');
 const tmdbId = validId(rawId) ? rawId : null;
-const imdbId = /^tt\d+$/.test(urlParams.get('imdb') || '') ? urlParams.get('imdb') : '';
+let imdbId = validImdb(urlParams.get('imdb')) ? urlParams.get('imdb') : '';
+let imdbLookup = null, playerRequest = 0;
 const mediaType = ['movie', 'tv'].includes(urlParams.get('type')) ? urlParams.get('type') : null;
 const movieTitle = urlParams.get('title') || 'Без названия';
 
-let currentSource = window.innerWidth <= 768 ? 'vidlink' : 'vidsrc';
+let currentSource = 'collaps';
 let currentSeason = 1;
 let currentEpisode = 1;
-let currentLang = 'ru';
 let episodeRequest = 0;
+let savedProgress=null,watchUser=null,animeProgress={};
 sourceSelect.value = currentSource;
+const playerStatus = document.getElementById('player-status');
+const audioHint = document.getElementById('audio-hint');
 
-const TRANSLATIONS = [
-    { name: 'Русские субтитры', lang: 'ru', flag: '🇷🇺' },
-    { name: 'Украинские субтитры', lang: 'uk', flag: '🇺🇦' },
-    { name: 'Английские субтитры', lang: 'en', flag: '🇬🇧' }
-];
+const anime=createAnimePlayer({container:playerContainer,panel:document.getElementById('anime-panel'),status:playerStatus,onProgress:data=>{animeProgress=data;rememberProgress();}});
+function rememberProgress(){if(watchUser&&tmdbId&&mediaType)saveWatchProgress(watchUser.uid,{tmdbId,mediaType,title:movieTitle,source:currentSource,season:currentSeason,episode:currentEpisode,...(currentSource==='aniliberty'?animeProgress:{})});}
 
-function initTranslations() {
-    if (!translationGrid) return;
+function updateAudioHint() {
     translationContainer.style.display = 'block';
-    
-    TRANSLATIONS.forEach((tr, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'translation-btn' + (index === 0 ? ' active' : '');
-        btn.innerHTML = `
-            <span class="flag">${tr.flag}</span>
-            <span class="name">${tr.name}</span>
-            <svg class="ic check" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;"><use href="#i-check"/></svg>
-        `;
-        btn.onclick = () => {
-            document.querySelectorAll('.translation-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentLang = tr.lang;
-            updatePlayer();
-        };
-        translationGrid.appendChild(btn);
-    });
+    audioHint.textContent = currentSource === 'aniliberty' ? 'Русская озвучка AniLiberty. Выбери точный релиз и серию ниже. Другие студии могут быть доступны в меню озвучки Collaps.' : currentSource === 'collaps'
+        ? 'Открой меню озвучки внутри плеера и выбери «Рус. Дублированный» или нужную студию. Набор дорожек зависит от фильма и серии.'
+        : 'Аудиодорожки выбираются внутри плеера. Если русской озвучки нет, переключись на «Collaps — русские озвучки».';
 }
 
-// ЗАГРУЗКА СЕЗОНОВ ИЗ TMDB
+// Загружаем сезоны из TMDB
 async function initSelectors() {
     if (mediaType !== 'tv') return;
 
@@ -83,7 +70,8 @@ async function initSelectors() {
             });
 
             if (validSeasons.length > 0) {
-                currentSeason = validSeasons[0].season_number;
+                currentSeason = validSeasons.some(s=>s.season_number===savedProgress?.season)?savedProgress.season:validSeasons[0].season_number;
+                seasonSelect.value=String(currentSeason);
                 await loadEpisodes(currentSeason);
             }
         } else {
@@ -97,7 +85,7 @@ async function initSelectors() {
     }
 }
 
-// ЗАГРУЗКА СЕРИЙ ДЛЯ СЕЗОНА
+// Загружаем серии выбранного сезона
 async function loadEpisodes(seasonNum) {
     const request = ++episodeRequest;
     episodeSelect.disabled = true;
@@ -118,7 +106,8 @@ async function loadEpisodes(seasonNum) {
                 opt.textContent = `Серия ${ep.episode_number}`;
                 episodeSelect.appendChild(opt);
             });
-            currentEpisode = sortedEpisodes[0].episode_number;
+            currentEpisode = savedProgress?.season===seasonNum&&sortedEpisodes.some(e=>e.episode_number===savedProgress.episode)?savedProgress.episode:sortedEpisodes[0].episode_number;
+            episodeSelect.value=String(currentEpisode);
         } else {
             episodeSelect.innerHTML = '<option value="1">Серия 1</option>';
             currentEpisode = 1;
@@ -135,68 +124,65 @@ async function loadEpisodes(seasonNum) {
     }
 }
 
-function updatePlayer() {
+async function updatePlayer() {
     if (!tmdbId || !mediaType) return;
-    
-    const isTv = mediaType === 'tv';
-    const s = currentSeason;
-    const e = currentEpisode;
-    const lang = currentLang;
-    let url = '';
-
-    switch (currentSource) {
-        case 'vidsrc':
-            url = isTv 
-                ? `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${s}&episode=${e}&lang=${lang}` 
-                : `https://vidsrc.me/embed/movie?tmdb=${tmdbId}&lang=${lang}`;
-            break;
-        case '2embed':
-            url = isTv 
-                ? `https://www.2embed.cc/embedtv/${tmdbId}?s=${s}&e=${e}&lang=${lang}`
-                : `https://www.2embed.cc/embed/${tmdbId}?lang=${lang}`;
-            break;
-        case 'superembed':
-            const embedId = imdbId || tmdbId;
-            url = isTv 
-                ? `https://multiembed.mov/?video_id=${embedId}&tmdb=${imdbId ? 0 : 1}&s=${s}&e=${e}&lang=${lang}`
-                : `https://multiembed.mov/?video_id=${embedId}&tmdb=${imdbId ? 0 : 1}&lang=${lang}`;
-            break;
-        case 'vidlink':
-            url = isTv 
-                ? `https://vidlink.pro/tv/${tmdbId}/${s}/${e}?sub=${lang}`
-                : `https://vidlink.pro/movie/${tmdbId}?sub=${lang}`;
-            break;
-    }
-
-    if (playerContainer && url) {
-        // Создаём элемент напрямую, чтобы параметры ссылки не становились HTML.
+    const request = ++playerRequest;
+    const source = currentSource;
+    const season = currentSeason, episode = currentEpisode;
+    updateAudioHint();
+    seasonGroup.style.display=episodeGroup.style.display=mediaType==='tv'&&source!=='aniliberty'?'flex':'none';
+    if(source==='aniliberty'){playerContainer.setAttribute('aria-busy','false');const resume=savedProgress?.source==='aniliberty'?savedProgress:anime.getProgress()||(animeProgress.animeRelease?animeProgress:null);await anime.open(movieTitle,resume);savedProgress=null;rememberProgress();return;}
+    anime.close();
+    rememberProgress();
+    playerStatus.textContent = source === 'collaps' ? 'Подключаем источник с русскими озвучками…' : 'Подключаем плеер…';
+    playerContainer.replaceChildren();
+    playerContainer.setAttribute('aria-busy', 'true');
+    try {
+        if (source === 'collaps' && !imdbId) {
+            imdbLookup ||= resolvePlayerImdb(tmdbId, mediaType).catch(error => { imdbLookup = null; throw error; });
+            imdbId = await imdbLookup;
+        }
+        if (request !== playerRequest) return;
+        const url = playerUrl(source, { tmdbId, imdbId, mediaType, season, episode });
+        // Параметры проходят проверку и не интерпретируются как HTML.
         const iframe = document.createElement('iframe');
         iframe.src = url;
-        iframe.title = `${movieTitle} — плеер`;
+        iframe.title = `${movieTitle} — ${source === 'collaps' ? 'выбор русской озвучки' : 'плеер'}`;
         iframe.allowFullscreen = true;
         iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
         iframe.referrerPolicy = 'strict-origin-when-cross-origin';
         iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+        iframe.addEventListener('load', () => {
+            if (request !== playerRequest) return;
+            playerContainer.setAttribute('aria-busy', 'false');
+            playerStatus.textContent = 'Если видео недоступно, перезапусти плеер или выбери другой источник.';
+        });
         playerContainer.replaceChildren(iframe);
+    } catch (error) {
+        if (request !== playerRequest) return;
+        playerContainer.setAttribute('aria-busy', 'false');
+        playerStatus.textContent = source === 'collaps' && !imdbId
+            ? 'Не удалось определить IMDb ID для русского плеера. Перезапусти его или выбери другой источник.'
+            : 'Не удалось открыть плеер. Попробуй другой источник.';
+        const placeholder = document.createElement('p');
+        placeholder.className = 'player-empty'; placeholder.textContent = 'Источник пока недоступен';
+        playerContainer.appendChild(placeholder);
+        console.error('Ошибка подключения плеера:', error);
     }
 }
+document.getElementById('reload-player').addEventListener('click', () => {
+    if (!imdbId) imdbLookup = null;
+    updatePlayer();
+});
 
-if (sourceSelect) sourceSelect.addEventListener('change', (e) => { currentSource = e.target.value; updatePlayer(); });
-if (seasonSelect) seasonSelect.addEventListener('change', async (e) => { currentSeason = Number(e.target.value); await loadEpisodes(currentSeason); });
+if (sourceSelect) sourceSelect.addEventListener('change', (e) => { if(currentSource==='aniliberty'){animeProgress=anime.getProgress()||animeProgress;rememberProgress();}currentSource = e.target.value;if(currentSource!=='aniliberty'&&mediaType==='tv'&&!seasonSelect.options.length)initSelectors();else updatePlayer(); });
+if (seasonSelect) seasonSelect.addEventListener('change', async (e) => { playerRequest++; currentSeason = Number(e.target.value); await loadEpisodes(currentSeason); });
 if (episodeSelect) episodeSelect.addEventListener('change', (e) => { currentEpisode = Number(e.target.value); updatePlayer(); });
 
 if (tmdbId && mediaType) {
     if (titleEl) titleEl.textContent = movieTitle;
     if (controlsPanel) controlsPanel.style.display = 'flex';
     
-    initTranslations();
-    
-    if (mediaType === 'tv') {
-        initSelectors(); 
-    } else {
-        updatePlayer(); 
-    }
-
     // Кнопка "Оценить"
     const rateBtn = document.getElementById('watch-rate-btn');
     if (rateBtn) {
@@ -206,4 +192,14 @@ if (tmdbId && mediaType) {
     }
 } else {
     if (titleEl) titleEl.textContent = "Ошибка: неверный идентификатор или тип тайтла";
+}
+
+function startWatching(user){
+    if(watchUser?.uid===user.uid)return;watchUser=user;
+    if(!tmdbId||!mediaType)return;
+    savedProgress=urlParams.get('resume')==='1'?readWatchHistory(user.uid).find(m=>String(m.tmdbId)===String(tmdbId)&&m.mediaType===mediaType):null;
+    if(savedProgress){currentSource=savedProgress.source;currentSeason=savedProgress.season;currentEpisode=savedProgress.episode;sourceSelect.value=currentSource;animeProgress=savedProgress;}
+    updateAudioHint();
+    if(currentSource==='aniliberty')updatePlayer();
+    else if(mediaType==='tv')initSelectors();else updatePlayer();
 }

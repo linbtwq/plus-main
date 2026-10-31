@@ -1,5 +1,5 @@
 export const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
-export const NO_POSTER = '../assets/img/no-poster.svg';
+export const NO_POSTER = new URL('../img/no-poster.svg', import.meta.url).href;
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 // Разрешаем только изображения с доверенного сервера.

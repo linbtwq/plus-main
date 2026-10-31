@@ -14,7 +14,8 @@ service cloud.firestore {
     }
     function validMovie(d) {
       return d.keys().hasAll(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
-        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
+        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion', 'ratingMode'])
+        && d.get('ratingMode', 'detailed') in ['quick', 'detailed']
         && d.userId is string && d.schemaVersion == 2
         && d.title is string && d.title.size() > 0 && d.title.size() <= 500
         && d.score is number && d.score >= 0 && d.score <= 10
@@ -34,8 +35,16 @@ service cloud.firestore {
         && stat(d.stats.idea, 10, d.isDuo) && stat(d.stats.atmosphere, 5, d.isDuo)
         && stat(d.stats.impression, 5, d.isDuo);
     }
+    // Подтверждённая дружба разрешает чтение оценок, но не их изменение.
+    function confirmedFriend(userId) {
+      let direct = /databases/$(database)/documents/friendships/$(request.auth.uid + ':' + userId);
+      let reverse = /databases/$(database)/documents/friendships/$(userId + ':' + request.auth.uid);
+      return (exists(direct) && get(direct).data.status == 'accepted')
+        || (exists(reverse) && get(reverse).data.status == 'accepted');
+    }
     match /movies/{movieId} {
-      allow read, delete: if owner(resource.data);
+      allow read: if request.auth != null && (owner(resource.data) || confirmedFriend(resource.data.userId));
+      allow delete: if owner(resource.data);
       allow create: if owner(request.resource.data) && validMovie(request.resource.data)
         && request.resource.data.timestamp == request.time;
       allow update: if owner(resource.data) && owner(request.resource.data)
@@ -43,11 +52,86 @@ service cloud.firestore {
         && validMovie(request.resource.data)
         && request.resource.data.timestamp == resource.data.timestamp;
     }
+    // Планы видны владельцу и подтверждённым друзьям для совместного выбора.
+    match /plans/{planId} {
+      allow get: if request.auth != null && planId.matches(request.auth.uid + ':(movie|tv):[0-9]+');
+      allow read: if request.auth != null && (owner(resource.data) || confirmedFriend(resource.data.userId));
+      allow delete: if owner(resource.data);
+      allow create, update: if owner(request.resource.data)
+        && planId == request.auth.uid + ':' + request.resource.data.mediaType + ':' + string(request.resource.data.tmdbId)
+        && request.resource.data.keys().hasAll(['userId','tmdbId','mediaType','title','poster','genres','year','createdAt'])
+        && request.resource.data.keys().hasOnly(['userId','tmdbId','mediaType','title','poster','genres','year','createdAt'])
+        && request.resource.data.tmdbId is int && request.resource.data.tmdbId > 0
+        && request.resource.data.mediaType in ['movie','tv']
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 500
+        && request.resource.data.poster is string && (request.resource.data.poster == '' || request.resource.data.poster.matches('https://image[.]tmdb[.]org/t/p/w500/[A-Za-z0-9._-]+'))
+        && request.resource.data.genres is string && request.resource.data.genres.size() <= 500
+        && request.resource.data.year is string && request.resource.data.year.size() <= 4
+        && request.resource.data.createdAt is number;
+    }
     match /roulette/{userId} {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['text'])
         && request.resource.data.text is string && request.resource.data.text.size() <= 100000;
+    }
+    // Профили содержат только общедоступные для участников сайта сведения, без почты.
+    match /profiles/{userId} {
+      function validProfileImage(value, maxSize) {
+        return value is string && value.size() <= maxSize
+          && (value == '' || (value.size() <= 2000 && value.matches('https://[^ ]+'))
+            || value.matches('data:image/(webp|jpeg|png);base64,[A-Za-z0-9+/]+={0,2}'));
+      }
+      function validProfile(d) {
+        return d.keys().hasAll(['displayName', 'bio', 'photoURL', 'createdAt', 'updatedAt'])
+          && d.keys().hasOnly(['displayName', 'bio', 'photoURL', 'bannerURL', 'createdAt', 'updatedAt'])
+          && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 60
+          && d.bio is string && d.bio.size() <= 500
+          && validProfileImage(d.photoURL, 100000)
+          && validProfileImage(d.get('bannerURL', ''), 350000)
+          && d.createdAt is timestamp && d.updatedAt is timestamp;
+      }
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create: if request.auth != null && request.auth.uid == userId
+        && validProfile(request.resource.data)
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if request.auth != null && request.auth.uid == userId
+        && validProfile(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+    }
+    match /friendships/{friendshipId} {
+      function member(d) { return request.auth != null && request.auth.uid in d.members; }
+      function validFriendship(d) {
+        return d.keys().hasAll(['members', 'senderId', 'status', 'createdAt', 'updatedAt'])
+          && d.keys().hasOnly(['members', 'senderId', 'status', 'createdAt', 'updatedAt'])
+          && d.members is list && d.members.size() == 2
+          && d.members[0] is string && d.members[1] is string
+          && d.members[0].matches('[A-Za-z0-9_-]{1,128}') && d.members[1].matches('[A-Za-z0-9_-]{1,128}')
+          && d.members[0] != d.members[1]
+          && friendshipId == d.members[0] + ':' + d.members[1]
+          && d.senderId in d.members && d.status in ['pending', 'accepted']
+          && d.createdAt is timestamp && d.updatedAt is timestamp;
+      }
+      // Чтение отсутствующей пары нужно для безопасного создания заявки транзакцией.
+      allow get: if (resource != null && member(resource.data)) || (request.auth != null
+        && !exists(/databases/$(database)/documents/friendships/$(friendshipId))
+        && (friendshipId.matches(request.auth.uid + ':[A-Za-z0-9_-]{1,128}')
+          || friendshipId.matches('[A-Za-z0-9_-]{1,128}:' + request.auth.uid)));
+      allow list: if member(resource.data);
+      allow create: if request.auth != null && validFriendship(request.resource.data)
+        && request.resource.data.senderId == request.auth.uid && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.members[0]))
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.members[1]))
+        && !exists(/databases/$(database)/documents/friendships/$(request.resource.data.members[1] + ':' + request.resource.data.members[0]));
+      // Принять заявку может только получатель. Отправитель не подтверждает дружбу сам.
+      allow update: if member(resource.data) && request.auth.uid != resource.data.senderId
+        && resource.data.status == 'pending' && request.resource.data.status == 'accepted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if member(resource.data);
     }
     match /{document=**} {
       allow read, write: if false;

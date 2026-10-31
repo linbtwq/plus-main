@@ -1,6 +1,9 @@
+import { getPlans,readAll,mediaKey,assertFriend } from './library-store.js';
+import { getProfile } from './profile-store.js';
+import { db,collection,query,where,getDocs } from './firebase-init.js';
 import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 import { loadRoulette, saveRoulette } from './roulette-store.js';
-import { tmdb, posterUrl, NO_POSTER, readRoulette, writeRoulette } from './shared.js';
+import { tmdb, posterUrl, NO_POSTER, readRoulette, writeRoulette, validId, watchUrl } from './shared.js';
 
 const textArea = document.getElementById('movie-list');
 const reel = document.getElementById('slot-reel');
@@ -9,21 +12,31 @@ const duration = document.getElementById('spin-duration');
 const resultModal = document.getElementById('result-modal');
 const winnerName = document.getElementById('winner-name');
 const modeBtns = document.querySelectorAll('.mode-btn');
+let seenTitles = new Set();
+let history = [], lastEliminated = '', winningTitle = '', poolPreviewTimer, poolPreviewVersion=0;
 let currentMode = 'classic', isSpinning = false, currentUser = null, winnerElement = null;
 spinBtn.disabled = true;
 textArea.disabled = true;
+document.querySelectorAll('.roulette-tools button,.roulette-tools select,.roulette-tools input,.roulette-list-toolbar button').forEach(button=>button.disabled=true);
 onAuthStateChanged(auth, async user => {
     if (!user) { window.location.href = '../index.html'; return; }
     currentUser = user;
+    try { const saved=JSON.parse(localStorage.getItem(`rouletteHistory:${user.uid}`)||'[]'); history=Array.isArray(saved)?saved.filter(item=>typeof item==='string').slice(0,10):[]; } catch {history=[];}
+    try {const saved=JSON.parse(localStorage.getItem(`rouletteSeen:${user.uid}`)||'null');seenTitles=new Set(Array.isArray(saved)?saved.filter(item=>typeof item==='string'):history);}catch{seenTitles=new Set(history);}
+    renderRouletteHistory();
+    loadPoolFriends();
     try { textArea.value = await loadRoulette(user.uid); }
     catch { textArea.value = readRoulette(user.uid); alert('Не удалось загрузить облачный список. Показана локальная копия.'); }
     textArea.disabled = false;
     spinBtn.disabled = false;
+    updateRouletteCount();
+    document.querySelectorAll('.roulette-tools button,.roulette-tools select,.roulette-tools input,.roulette-list-toolbar button').forEach(button=>button.disabled=false);
 });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
 let saveTimer, saveQueue = Promise.resolve();
 function saveList() {
+    updateRouletteCount();
     const uid = currentUser?.uid;
     const text = textArea.value;
     try { writeRoulette(uid, text); }
@@ -62,12 +75,15 @@ modeBtns.forEach(button => button.addEventListener('click', () => {
 duration.addEventListener('input', () => { document.getElementById('speed-val').textContent = `${duration.value} сек`; });
 
 const posterCache = new Map();
+const movieCache = new Map();
 async function getPoster(title) {
     if (posterCache.has(title)) return posterCache.get(title);
     try {
         const data = await tmdb('search/multi', { query: title });
-        const item = (data.results || []).find(movie => ['movie', 'tv'].includes(movie.media_type) && movie.poster_path);
-        const poster = item ? posterUrl(`https://image.tmdb.org/t/p/w200${item.poster_path}`) : NO_POSTER;
+        const results=(data.results||[]).filter(movie=>['movie','tv'].includes(movie.media_type));
+        const item=results.find(movie=>(movie.title||movie.name||'').toLocaleLowerCase()===title.toLocaleLowerCase())||results[0];
+        if(item&&validId(item.id))movieCache.set(title,{id:item.id,mediaType:item.media_type,title:item.title||item.name});
+        const poster = item?.poster_path ? posterUrl(`https://image.tmdb.org/t/p/w200${item.poster_path}`) : NO_POSTER;
         posterCache.set(title, poster);
         return poster;
     } catch { return NO_POSTER; }
@@ -82,6 +98,7 @@ function makeItem(poster, title, winner = false) {
     image.addEventListener('error', () => { if (!image.src.endsWith('/no-poster.svg')) image.src = NO_POSTER; }, { once: true });
     if (winner) image.style.border = '2px solid var(--gold)';
     item.appendChild(image);
+    const caption=document.createElement('span');caption.className='slot-caption';caption.textContent=title;item.appendChild(caption);
     return item;
 }
 
@@ -101,14 +118,18 @@ new ResizeObserver(resizeReel).observe(reel.parentElement);
 
 spinBtn.onclick = async () => {
     if (isSpinning || !currentUser) return;
-    const movies = [...new Set(textArea.value.split('\n').map(value => value.trim()).filter(Boolean))];
-    if (movies.length < 2) return alert('Добавь хотя бы два разных тайтла!');
+    const allMovies = [...new Set(textArea.value.split('\n').map(value => value.trim()).filter(Boolean))];
+    const movies = currentMode === 'no-repeat' ? allMovies.filter(title=>!seenTitles.has(title)) : allMovies;
+    if(currentMode==='no-repeat'&&!movies.length)return alert('Все фильмы уже выпадали. Очисти историю или пополни список.');
+    if (allMovies.length < 2) return alert('Добавь хотя бы два разных тайтла!');
     if (movies.length > 200) return alert('За один раз можно прокрутить до 200 тайтлов.');
     isSpinning = true;
+    clearTimeout(poolPreviewTimer);poolPreviewVersion++;
     spinBtn.disabled = true;
     textArea.disabled = true;
     duration.disabled = true;
     modeBtns.forEach(button => button.disabled = true);
+    document.querySelectorAll('.roulette-tools button,.roulette-tools select,.roulette-tools input,.roulette-list-toolbar button').forEach(button=>button.disabled=true);
     spinBtn.textContent = 'ЗАГРУЗКА…';
     try {
         // Ограничиваем число одновременных запросов к каталогу.
@@ -142,8 +163,15 @@ spinBtn.onclick = async () => {
         centerWinner();
         await new Promise(resolve => setTimeout(resolve, animationDuration));
         reel.querySelectorAll('.slot-item').forEach(item => item.classList.remove('blur-effect'));
-        winnerName.textContent = movies[winnerIndex];
+        winningTitle=movies[winnerIndex];
+        winnerName.textContent = winningTitle;
+        const winnerPoster=document.getElementById('winner-poster');winnerPoster.src=posters[winnerIndex];winnerPoster.hidden=false;
+        history=[winningTitle,...history.filter(title=>title!==winningTitle)].slice(0,10);seenTitles.add(winningTitle);
+        try{localStorage.setItem(`rouletteSeen:${currentUser.uid}`,JSON.stringify([...seenTitles]));}catch{}
+        try{localStorage.setItem(`rouletteHistory:${currentUser.uid}`,JSON.stringify(history));}catch{}
+        renderRouletteHistory();
         if (currentMode === 'elimination') {
+            lastEliminated=winningTitle;document.getElementById('roulette-undo').hidden=false;
             movies.splice(winnerIndex, 1);
             textArea.value = movies.join('\n');
             saveList();
@@ -156,7 +184,102 @@ spinBtn.onclick = async () => {
         textArea.disabled = false;
         duration.disabled = false;
         modeBtns.forEach(button => button.disabled = false);
-        spinBtn.textContent = 'КРУТИТЬ';
+        document.querySelectorAll('.roulette-tools button,.roulette-tools select,.roulette-tools input,.roulette-list-toolbar button').forEach(button=>button.disabled=false);
+        spinBtn.textContent = 'Выбрать фильм';
     }
 };
 document.getElementById('close-modal').onclick = () => resultModal.classList.add('hidden');
+
+function listItems() {return textArea.value.split('\n').map(value=>value.trim()).filter(Boolean);}
+function updateRouletteCount() {document.getElementById('roulette-count').textContent=String(new Set(listItems()).size);previewRoulettePool();}
+function renderRouletteHistory() {
+    const list=document.getElementById('roulette-history');list.replaceChildren();
+    if(!history.length){const item=document.createElement('li');item.textContent='Пока ничего не выбирали';item.className='history-empty';list.appendChild(item);}
+    for(const title of history){const item=document.createElement('li');item.textContent=title;list.appendChild(item);}
+}
+document.getElementById('roulette-dedupe').addEventListener('click',()=>{textArea.value=[...new Set(listItems())].join('\n');saveList();});
+document.getElementById('roulette-shuffle').addEventListener('click',()=>{
+    const items=listItems();for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}
+    textArea.value=items.join('\n');saveList();
+});
+document.getElementById('roulette-undo').addEventListener('click',()=>{if(!lastEliminated)return;textArea.value=[...new Set([...listItems(),lastEliminated])].join('\n');saveList();lastEliminated='';document.getElementById('roulette-undo').hidden=true;});
+document.getElementById('roulette-clear-history').addEventListener('click',()=>{history=[];seenTitles.clear();try{localStorage.removeItem(`rouletteHistory:${currentUser.uid}`);localStorage.removeItem(`rouletteSeen:${currentUser.uid}`);}catch{}renderRouletteHistory();});
+document.getElementById('roulette-export').addEventListener('click',()=>{
+    const url=URL.createObjectURL(new Blob([textArea.value],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='plus-plus-movies.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+document.getElementById('roulette-import').addEventListener('change',async event=>{
+    const file=event.target.files[0];if(!file)return;
+    if(file.size>100000){document.getElementById('roulette-status').textContent='Файл должен быть не больше 100 КБ';event.target.value='';return;}
+    const text=await file.text();if(isSpinning)return;
+    textArea.value=[...new Set([...listItems(),...text.replace(/^\uFEFF/,'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean)])].join('\n');saveList();event.target.value='';
+});
+document.getElementById('roulette-discover').addEventListener('click',async event=>{
+    const button=event.currentTarget;button.disabled=true;
+    try {
+        const genre=document.getElementById('roulette-discover-genre').value;
+        const data=await tmdb('discover/movie',{sort_by:'popularity.desc',...(genre?{with_genres:genre}:{}),page:Math.floor(Math.random()*5)+1});
+        const items=listItems(),existing=new Set(items);
+        const additions=(data.results||[]).filter(movie=>movie.title&&!existing.has(movie.title)).slice(0,10);
+        for(const movie of additions){items.push(movie.title);movieCache.set(movie.title,{id:movie.id,mediaType:'movie',title:movie.title});if(movie.poster_path)posterCache.set(movie.title,posterUrl(`https://image.tmdb.org/t/p/w200${movie.poster_path}`));}
+        textArea.value=[...new Set(items)].join('\n');saveList();document.getElementById('roulette-status').textContent=`Добавлено: ${additions.length}`;
+    }catch{document.getElementById('roulette-status').textContent='Не удалось получить фильмы из каталога. Попробуй ещё раз.';}
+    finally{button.disabled=false;}
+});
+async function openWinner(rate) {
+    if(!winningTitle)return;
+    await getPoster(winningTitle);const movie=movieCache.get(winningTitle);
+    if(!movie){alert('Тайтл не найден. Попробуй уточнить название в списке.');return;}
+    location.href=rate?`rate.html?${new URLSearchParams({id:movie.id,type:movie.mediaType,title:movie.title})}`:watchUrl(movie.id,movie.mediaType,movie.title);
+}
+document.getElementById('roulette-watch-winner').addEventListener('click',()=>openWinner(false));
+document.getElementById('roulette-rate-winner').addEventListener('click',()=>openWinner(true));
+
+// До вращения показываем реальные варианты из списка вместо пустого барабана.
+function previewRoulettePool() {
+    if(isSpinning)return;
+    clearTimeout(poolPreviewTimer);const request=++poolPreviewVersion;
+    poolPreviewTimer=setTimeout(async()=>{
+        const titles=[...new Set(listItems())].slice(0,3);
+        if(!titles.length){reel.replaceChildren();const empty=document.createElement('div');empty.className='slot-item';empty.textContent='Добавь фильмы в список';reel.appendChild(empty);reel.style.transform='none';winnerElement=null;return;}
+        const posters=await Promise.all(titles.map(getPoster));
+        if(request!==poolPreviewVersion||isSpinning)return;
+        winnerElement=null;reel.style.transition='none';reel.style.transform='none';reel.replaceChildren();
+        for(let i=0;i<3;i++){const index=i%titles.length;const item=makeItem(posters[index],titles[index]);item.classList.remove('blur-effect');reel.appendChild(item);}
+    },350);
+}
+
+
+async function loadPoolFriends(){
+    const area=document.getElementById('roulette-friends');
+    try{
+        const snapshot=await getDocs(query(collection(db,'friendships'),where('members','array-contains',currentUser.uid)));
+        const ids=snapshot.docs.map(d=>d.data()).filter(d=>d.status==='accepted').map(d=>d.members.find(uid=>uid!==currentUser.uid));
+        const profiles=await Promise.all(ids.map(async uid=>({uid,profile:await getProfile(uid)})));area.replaceChildren();const legend=document.createElement('legend');legend.textContent='Друзья для совместного выбора';area.append(legend);
+        if(!profiles.length){const text=document.createElement('p');text.textContent='Добавь друзей в профиле для совместного выбора.';area.append(text);}
+        for(const {uid,profile} of profiles){const label=document.createElement('label');label.className='check-label';const box=document.createElement('input');box.type='checkbox';box.value=uid;label.append(box,document.createTextNode(profile?.displayName||'Друг'));area.append(label);}
+    }catch{area.textContent='Не удалось загрузить друзей. Обнови страницу, чтобы повторить.';}
+}
+document.getElementById('roulette-prepare').addEventListener('click',async event=>{
+    const button=event.currentTarget,status=document.getElementById('roulette-pool-status');
+    if(!currentUser||isSpinning)return;button.disabled=true;spinBtn.disabled=true;textArea.disabled=true;status.textContent='Проверяем планы, оценки и длительность…';
+    try{
+        const source=document.getElementById('roulette-pool-source').value,others=Array.from(document.querySelectorAll('#roulette-friends input:checked'),input=>input.value),participants=[currentUser.uid,...others];
+        if(['union','intersection'].includes(source)&&!others.length)throw new Error('Выбери хотя бы одного друга.');
+        await Promise.all(others.map(uid=>assertFriend(currentUser.uid,uid)));
+        let candidates=[];
+        if(source==='manual'){
+            for(const title of [...new Set(listItems())]){await getPoster(title);const media=movieCache.get(title);if(!media)throw new Error(`Не удалось найти «${title}». Уточни название.`);candidates.push({tmdbId:media.id,mediaType:media.mediaType,title});}
+        }else{
+            const lists=await Promise.all((source==='plans'?[currentUser.uid]:participants).map(uid=>getPlans(uid,currentUser.uid)));
+            const keys=lists.map(list=>new Set(list.map(m=>mediaKey(m.tmdbId,m.mediaType))));
+            const map=new Map(lists.flat().map(m=>[mediaKey(m.tmdbId,m.mediaType),m]));candidates=[...map.values()].filter(m=>source!=='intersection'||keys.every(set=>set.has(mediaKey(m.tmdbId,m.mediaType))));
+        }
+        if(candidates.length>200)throw new Error('В подборе больше 200 тайтлов. Сократи исходный список.');
+        if(document.getElementById('roulette-unwatched').checked){const rated=(await Promise.all(participants.map(uid=>readAll('movies',uid)))).flat(),seen=new Set(rated.map(m=>mediaKey(m.tmdbId,m.mediaType)).filter(Boolean)),legacy=new Set(rated.filter(m=>!mediaKey(m.tmdbId,m.mediaType)).map(m=>String(m.title).trim().toLocaleLowerCase()));candidates=candidates.filter(m=>!seen.has(mediaKey(m.tmdbId,m.mediaType))&&!legacy.has(m.title.trim().toLocaleLowerCase()));}
+        const max=Number(document.getElementById('roulette-max-runtime').value),genre=Number(document.getElementById('roulette-pool-genre').value);let missingRuntime=0;
+        if(max||genre){const filtered=[];for(const movie of candidates){const info=await tmdb(`${movie.mediaType}/${movie.tmdbId}`);const runtime=info.runtime||info.episode_run_time?.[0];if(max&&!runtime){missingRuntime++;continue;}if(max&&runtime>max||genre&&!info.genres?.some(g=>g.id===genre))continue;filtered.push(movie);}candidates=filtered;}
+        for(const m of candidates){movieCache.set(m.title,{id:m.tmdbId,mediaType:m.mediaType,title:m.title});if(m.poster)posterCache.set(m.title,posterUrl(m.poster));}
+        textArea.value=[...new Set(candidates.map(m=>m.title))].join('\n');saveList();status.textContent=`Готово: ${candidates.length} тайтлов.${missingRuntime?' Без известной длительности исключено: '+missingRuntime+'.':''}${candidates.length?'':' Попробуй смягчить условия.'}`;
+    }catch(error){status.textContent=error.message||'Не удалось подготовить список. Попробуй ещё раз.';}
+    finally{button.disabled=false;spinBtn.disabled=false;textArea.disabled=false;}
+});

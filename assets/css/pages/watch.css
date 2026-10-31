@@ -186,3 +186,9 @@
     .control-group { max-width: 100%; }
     .translation-btn { padding: 8px 14px; font-size: 0.85rem; }
 }
+/* Подсказка относится к звуковым дорожкам, а не к языку субтитров. */
+.player-audio-hint { color: var(--paper-dark); font-size: .9rem; line-height: 1.6; text-align: center; max-width: 720px; margin: 0 auto; }
+.player-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+#player-status { color: var(--muted); font-size: .82rem; flex: 1; min-width: 180px; line-height: 1.5; }
+.player-empty { display: grid; place-items: center; height: 100%; padding: 20px; color: var(--muted); text-align: center; }
+.watch-wrapper .control-group { max-width: 300px; }
