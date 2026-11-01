@@ -1,3 +1,5 @@
+import { createJointRatingForm } from './joint-rating-form.js';
+import { saveJointRating } from './joint-ratings.js';
 import { readAll, removePlan } from './library-store.js';
 import { getProfile } from './profile-store.js';
 import { auth, db, collection, addDoc, getDoc, doc, updateDoc, serverTimestamp, onAuthStateChanged, signOut } from './firebase-init.js';
@@ -9,6 +11,7 @@ let selectedMovie = null;
 let selectedTmdbId = null, selectedMediaType = null, searchRequest = 0, saving = false;
 let currentUser = null, currentScore = 0, selectedPoster = '', selectedGenres = '';
 
+const jointForm=createJointRatingForm(()=>currentUser);
 const GENRE_MAP = { 28: "Боевик", 12: "Приключения", 16: "Мультфильм", 35: "Комедия", 80: "Криминал", 99: "Документальный", 18: "Драма", 10751: "Семейный", 14: "Фэнтези", 36: "История", 27: "Ужасы", 10402: "Музыка", 9648: "Детектив", 10749: "Мелодрама", 878: "Фантастика", 10770: "ТВ фильм", 53: "Триллер", 10752: "Военный", 37: "Вестерн", 10759: "Боевик/Прикл.", 10762: "Детский", 10763: "Новости", 10764: "Реалити", 10765: "Фантастика/Фэнтези", 10766: "Мыльная опера", 10767: "Ток-шоу", 10768: "Война/Политика" };
 
 const ICON = (name, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -24,7 +27,7 @@ function showToast(msg) {
     t._h = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.classList.add('hidden'), 300); }, 2600);
 }
 
-onAuthStateChanged(auth, (user) => { if (user) { currentUser = user; if(new URLSearchParams(location.search).has('edit'))loadEditingRecord();else checkRatingDraft(); } else window.location.href = '../index.html'; });
+onAuthStateChanged(auth, (user) => { if (user) { currentUser = user;jointForm.load(); if(new URLSearchParams(location.search).has('edit'))loadEditingRecord();else checkRatingDraft(); } else window.location.href = '../index.html'; });
 document.getElementById('sidebar-logout')?.addEventListener('click', () => signOut(auth));
 
 const titleInput = document.getElementById('movie-title');
@@ -230,13 +233,16 @@ document.getElementById('save-btn').onclick = async () => {
             authorPhoto: currentUser.photoURL, userId: currentUser.uid, timestamp: editingRecord?.timestamp || serverTimestamp(),
             date: editingRecord?.date || new Date().toLocaleDateString('ru-RU'), stats: finalStats, review: document.getElementById('review-text').value.trim() || null
         };
-        if(editingRecord)await updateDoc(doc(db,'movies',editingRecord.id),payload);
+        const partner=jointForm.selected();
+        if(editingRecord?.jointPartnerId){payload.jointPartnerId=editingRecord.jointPartnerId;payload.jointPartnerName=editingRecord.jointPartnerName||'';payload.jointFirstId=currentUser.uid;}
+        if(partner&&!editingRecord?.jointPartnerId)await saveJointRating(currentUser.uid,payload,partner,editingRecord?.id||'');
+        else if(editingRecord)await updateDoc(doc(db,'movies',editingRecord.id),payload);
         else await addDoc(collection(db,'movies'),payload);
         removePlan(currentUser.uid,{tmdbId:selectedTmdbId,mediaType:selectedMediaType}).catch(()=>{});
         try { if (typeof window.confetti === 'function') window.confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#78B6DB', '#E9F0F8', '#B8104B', '#FF5C8D'] }); } catch { /* Сохранение не зависит от декоративной анимации. */ }
         try { if(!new URLSearchParams(location.search).has('edit'))localStorage.removeItem(`ratingDraft:${currentUser.uid}`); } catch {}
         setTimeout(() => { window.location.href = 'list.html'; }, 800);
-    } catch (e) { saving = false; console.error(e); showToast('Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
+    } catch (e) { saving = false; console.error(e); showToast(e.code?'Не удалось сохранить, попробуй ещё раз':e.message||'Не удалось сохранить, попробуй ещё раз'); btn.disabled = false; btn.innerHTML = SAVE_HTML; }
 };
 
 // При переходе из плеера выбираем точный тайтл по идентификатору.
@@ -289,7 +295,7 @@ function saveRatingDraft() {
     if(!currentUser || saving || !selectedMovie || editingRecord || new URLSearchParams(location.search).has('edit'))return;
     clearTimeout(draftTimer);draftTimer=setTimeout(()=>{
         if(saving)return;
-        const data={movie:selectedMovie,mode:ratingMode,duo:document.getElementById('is-duo-checkbox').checked,review:document.getElementById('review-text').value,type:typeSelected.dataset.value,values:{}};
+        const data={movie:selectedMovie,mode:ratingMode,duo:document.getElementById('is-duo-checkbox').checked,review:document.getElementById('review-text').value,type:typeSelected.dataset.value,partnerId:jointForm.selected()?.uid||'',values:{}};
         document.querySelectorAll('.sliders-wrapper input[type="range"]').forEach(input=>data.values[input.id]=input.value);
         try {localStorage.setItem(`ratingDraft:${currentUser.uid}`,JSON.stringify(data));document.getElementById('rating-draft-status').textContent='Черновик сохранён';}catch{document.getElementById('rating-draft-status').textContent='Не удалось сохранить черновик';}
     },400);
@@ -305,7 +311,7 @@ function checkRatingDraft() {
         showSuggestions([draft.movie]);suggestionsBox.firstElementChild?.click();
         for(const [id,value] of Object.entries(draft.values||{})){const input=document.getElementById(id);if(input?.matches('.sliders-wrapper input[type="range"]')&&Number.isFinite(Number(value))){input.value=String(Math.min(Number(input.max),Math.max(Number(input.min),Number(value))));if(input.type==='range')paintRange(input);}}
         document.getElementById('is-duo-checkbox').checked=!!draft.duo;document.getElementById('is-duo-checkbox').dispatchEvent(new Event('change'));
-        document.getElementById('review-text').value=String(draft.review||'').slice(0,10000);wrapper.remove();calculate();
+        jointForm.restore(draft.partnerId);document.getElementById('review-text').value=String(draft.review||'').slice(0,10000);wrapper.remove();calculate();
     });
     discard.addEventListener('click',()=>{try{localStorage.removeItem(`ratingDraft:${currentUser.uid}`);}catch{}wrapper.remove();});
     wrapper.append(text,restore,discard);document.querySelector('.rate-page-heading').after(wrapper);
@@ -329,13 +335,13 @@ async function loadEditingRecord(){
         const option=document.querySelector(`#media-type-options [data-value="${['movie','series','anime'].includes(movie.type)?movie.type:'movie'}"]`);option?.click();
         document.getElementById('is-duo-checkbox').checked=!!movie.isDuo;document.getElementById('is-duo-checkbox').dispatchEvent(new Event('change'));
         for(const key of ['script','actors','directing','chars','idea','atmosphere','impression']){
-            const parts=String(movie.stats?.[key]||'').split('/');
+            const parts=String(movie.stats?.[key]||'').split('/');if(movie.jointFirstId&&movie.jointFirstId!==currentUser.uid)parts.reverse();
             for(const [index,user] of ['1','2'].entries()){
                 const range=document.getElementById(`${key}-${user}`),value=Number(parts[index]??parts[0]);
                 if(Number.isFinite(value)&&value>0){range.value=Math.min(Number(range.max),Math.max(Number(range.min),value));paintRange(range);}
             }
         }
-        document.getElementById('review-text').value=movie.review||'';
+        jointForm.restore(movie.jointPartnerId);if(movie.jointPartnerId){jointForm.lock();document.getElementById('is-duo-checkbox').disabled=true;}document.getElementById('review-text').value=movie.review||'';
         document.querySelector('.rate-page-heading h1').textContent='Изменить оценку';
         document.querySelector('.score-save-row > p').textContent='Изменения обновят запись в архиве.';
         document.getElementById('clear-preview').hidden=true;
@@ -345,7 +351,7 @@ async function loadEditingRecord(){
 }
 
 // Подсказки объясняют разницу между критериями без дополнительных экранов.
-const criterionHints={script:'Сюжет, диалоги, логика событий и темп истории.',actors:'Убедительность актёрской игры или озвучки персонажей.',directing:'Постановка сцен, визуальный язык и работа с ритмом.',chars:'Насколько интересны герои, их мотивация и развитие.',idea:'Замысел и темы: что фильм хочет сказать и насколько это цепляет.',atmosphere:'Музыка, звук и настроение мира фильма. До 5 баллов.',impression:'Личное послевкусие и желание вернуться к фильму. До 5 баллов.'};
+const criterionHints={script:'Сюжет, диалоги, логика событий и темп истории.',actors:'Убедительность актёрской игры или озвучки персонажей.',directing:'Постановка сцен, визуальный язык и работа с ритмом.',chars:'Насколько интересны герои, их мотивация, развитие и насколько хорошо прописаны.',idea:'Замысел и темы: что фильм хочет сказать и насколько это цепляет.',atmosphere:'Музыка, звук и настроение мира фильма. До 5 баллов.',impression:'Личное послевкусие и желание вернуться к фильму. До 5 баллов.'};
 for(const group of document.querySelectorAll('.range-group')){
     const key=group.querySelector('input[type="range"]').id.replace(/-[12]$/,'');
     const help=document.createElement('details');help.className='criterion-help';

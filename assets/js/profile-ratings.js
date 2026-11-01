@@ -27,7 +27,7 @@ export function createProfileRatings() {
         element('rating-detail-distinction').hidden=movie.score!==10;
         element('rating-detail-poster').src = posterUrl(movie.poster);
         element('rating-detail-score').textContent = movie.score === null ? '—' : movie.score.toFixed(1);
-        element('rating-detail-date').textContent = typeof movie.date === 'string' ? movie.date : '';
+        element('rating-detail-date').textContent = [typeof movie.date === 'string' ? movie.date : '',movie.jointPartnerName?'Вместе с '+movie.jointPartnerName:''].filter(Boolean).join(' · ');
         element('rating-detail-genres').textContent = typeof movie.genres === 'string' ? movie.genres : '';
         element('rating-detail-review').textContent = typeof movie.review === 'string' && movie.review.trim() ? movie.review : 'Без отзыва';
         const stats = element('rating-detail-stats'); stats.replaceChildren();

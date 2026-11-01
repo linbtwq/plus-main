@@ -42,3 +42,17 @@ export function compareRatings(mine,theirs) {
     const own=latest(mine),other=latest(theirs);
     return [...own].filter(([key])=>other.has(key)).map(([key,movie])=>({key,title:movie.title,poster:movie.poster,mine:Number(movie.score),theirs:Number(other.get(key).score),difference:Math.abs(Number(movie.score)-Number(other.get(key).score))}));
 }
+
+// Одна транзакция дополняет актуальный облачный список, сохраняя уже добавленные фильмы.
+export async function sendPlansToRoulette(uid){
+    const [{loadRoulette}, {runTransaction}, {mergeRouletteTitles}, {readRoulette,writeRoulette}]=await Promise.all([import('./roulette-store.js'),import('./firebase-init.js'),import('./roulette-merge.js'),import('./shared.js')]);
+    const plans=await getPlans(uid);if(!plans.length)return {added:0,skipped:0};
+    const cached=await loadRoulette(uid),reference=doc(db,'roulette',uid);
+    const result=await runTransaction(db,async transaction=>{
+        const snapshot=await transaction.get(reference),text=snapshot.exists()?snapshot.data().text:cached;
+        const merged=mergeRouletteTitles(text,plans.map(movie=>movie.title));
+        if(merged.added)transaction.set(reference,{text:merged.text});return merged;
+    });
+    if(readRoulette(uid)===cached){try{writeRoulette(uid,result.text);localStorage.removeItem(`roulettePending:${uid}`);}catch{}}
+    return result;
+}

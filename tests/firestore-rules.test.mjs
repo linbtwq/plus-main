@@ -138,4 +138,36 @@ test('Правила профилей и друзей запрещают под�
         await denied(await commit('alice',[{update:{name:name('movies/detailed-rating'),fields:{timestamp:{timestampValue:new Date().toISOString()}}},updateMask:{fieldPaths:['timestamp']}}]));
     });
 
+    await t.test('Совместные оценки требуют дружбы, согласия получателя и атомарной копии',async()=>{
+        await ok(await commit('alice',[write('friendships/alice:bob',relation('alice','bob'),true)]));
+        const acceptFriend={update:{name:name('friendships/alice:bob'),fields:{status:string('accepted')}},updateMask:{fieldPaths:['status']},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]};
+        await ok(await commit('bob',[acceptFriend]));
+        const fields={userId:string('alice'),title:string('Общий фильм'),score:{doubleValue:8},type:string('movie'),poster:string(''),genres:string('Драма'),authorName:string('Алиса'),authorPhoto:{nullValue:null},date:string('01.11.2026'),stats:{mapValue:{fields:Object.fromEntries(['script','actors','directing','chars','idea','atmosphere','impression'].map(key=>[key,string(['atmosphere','impression'].includes(key)?'4.0/4.0':'8.0/8.0')]))}},review:string('Общий отзыв'),isDuo:{booleanValue:true},tmdbId:{integerValue:'123'},mediaType:string('movie'),schemaVersion:{integerValue:'2'},ratingMode:string('detailed'),jointPartnerId:string('bob'),jointPartnerName:string('Боб'),jointFirstId:string('alice')};
+        const source='joint-source-alice-00000000-0000-4000-8000-000000000001',id='alice:bob:'+source;
+        const createJoint=(sourceId,status='pending')=>[
+            {update:{name:name('movies/'+sourceId),fields},updateTransforms:[{fieldPath:'timestamp',setToServerValue:'REQUEST_TIME'}]},
+            {update:{name:name('jointRatings/alice:bob:'+sourceId),fields:{senderId:string('alice'),receiverId:string('bob'),members:{arrayValue:{values:[string('alice'),string('bob')]}},sourceMovieId:string(sourceId),movie:{mapValue:{fields}},status:string(status)}},updateTransforms:[{fieldPath:'movie.timestamp',setToServerValue:'REQUEST_TIME'},{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'},{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]}
+        ];
+        assert.equal((await request('/movies/'+source,'alice')).status,404);
+        assert.equal((await request('/jointRatings/'+id,'alice')).status,404);
+        await denied(await commit('alice',createJoint(source,'accepted')));
+        await ok(await commit('alice',createJoint(source)));
+        await ok(await request('/jointRatings/'+id,'bob'));await denied(await request('/jointRatings/'+id,'carol'));
+        const q={structuredQuery:{from:[{collectionId:'jointRatings'}],where:{fieldFilter:{field:{fieldPath:'members'},op:'ARRAY_CONTAINS',value:string('bob')}}}};
+        await ok(await request(':runQuery','bob',{method:'POST',body:JSON.stringify(q)}));await denied(await request(':runQuery','carol',{method:'POST',body:JSON.stringify(q)}));
+        const change=(key,status)=>({update:{name:name('jointRatings/'+key),fields:{status:string(status)}},updateMask:{fieldPaths:['status']},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]});
+        await denied(await commit('alice',[change(id,'accepted')]));await denied(await commit('carol',[change(id,'accepted')]));await denied(await commit('bob',[change(id,'accepted')]));
+        const sourceFields=(await (await request('/movies/'+source,'alice')).json()).fields;
+        const copy={update:{name:name('movies/joint-'+id),fields:{...sourceFields,userId:string('bob'),authorName:string('Боб'),jointPartnerId:string('alice'),jointPartnerName:string('Алиса')}},updateTransforms:[{fieldPath:'timestamp',setToServerValue:'REQUEST_TIME'}]};
+        await denied(await commit('bob',[{...copy,update:{...copy.update,fields:{...copy.update.fields,score:{doubleValue:1}}}},change(id,'accepted')]));
+        assert.equal((await request('/movies/joint-'+id,'bob')).status,404);
+        await ok(await commit('bob',[copy,change(id,'accepted')]));
+        const saved=(await (await request('/movies/joint-'+id,'bob')).json()).fields;assert.deepEqual(saved.stats,sourceFields.stats);assert.deepEqual(saved.score,sourceFields.score);assert.equal(saved.userId.stringValue,'bob');
+        await denied(await commit('alice',[change(id,'cancelled')]));
+        const second=source.replace(/1$/,'2'),secondId='alice:bob:'+second;
+        await ok(await commit('alice',createJoint(second)));await denied(await commit('alice',[change(secondId,'declined')]));await ok(await commit('bob',[change(secondId,'declined')]));await ok(await commit('alice',[change(secondId,'pending')]));await ok(await commit('alice',[change(secondId,'cancelled')]));await denied(await commit('bob',[change(secondId,'accepted')]));
+        const third=source.replace(/1$/,'3');await ok(await commit('alice',createJoint(third)));await ok(await commit('bob',[{delete:name('friendships/alice:bob')}]));await denied(await commit('bob',[change('alice:bob:'+third,'accepted')]));
+        await denied(await commit('alice',createJoint(source.replace(/1$/,'4'))));
+    });
+
 });

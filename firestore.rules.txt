@@ -14,8 +14,11 @@ service cloud.firestore {
     }
     function validMovie(d) {
       return d.keys().hasAll(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
-        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion', 'ratingMode'])
+        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion', 'ratingMode', 'jointPartnerId', 'jointPartnerName', 'jointFirstId'])
         && d.get('ratingMode', 'detailed') in ['quick', 'detailed']
+        && d.get('jointPartnerId', '') is string && d.get('jointPartnerId', '').size() <= 128
+        && d.get('jointFirstId', '') is string && d.get('jointFirstId', '').size() <= 128
+        && d.get('jointPartnerName', '') is string && d.get('jointPartnerName', '').size() <= 200
         && d.userId is string && d.schemaVersion == 2
         && d.title is string && d.title.size() > 0 && d.title.size() <= 500
         && d.score is number && d.score >= 0 && d.score <= 10
@@ -43,6 +46,11 @@ service cloud.firestore {
         || (exists(reverse) && get(reverse).data.status == 'accepted');
     }
     match /movies/{movieId} {
+      // Транзакция читает отсутствие только новой личной записи или своей копии приглашения.
+      allow get: if request.auth != null && !exists(/databases/$(database)/documents/movies/$(movieId))
+        && (movieId.matches('joint-source-' + request.auth.uid + '-[a-f0-9-]{36}')
+          || movieId.matches('joint-[A-Za-z0-9_-]{1,128}:' + request.auth.uid + ':[A-Za-z0-9_-]{1,500}'));
+
       allow read: if request.auth != null && (owner(resource.data) || confirmedFriend(resource.data.userId));
       allow delete: if owner(resource.data);
       allow create: if owner(request.resource.data) && validMovie(request.resource.data)
@@ -51,6 +59,51 @@ service cloud.firestore {
         && request.resource.data.userId == resource.data.userId
         && validMovie(request.resource.data)
         && request.resource.data.timestamp == resource.data.timestamp;
+    }
+    // Совместная оценка отправляется как снимок; получатель сам подтверждает запись в своём архиве.
+    match /jointRatings/{jointId} {
+      function member(d) { return request.auth != null && request.auth.uid in d.members; }
+      function validJoint(d) {
+        return d.keys().hasAll(['senderId','receiverId','members','sourceMovieId','movie','status','createdAt','updatedAt'])
+          && d.keys().hasOnly(['senderId','receiverId','members','sourceMovieId','movie','status','createdAt','updatedAt'])
+          && d.senderId is string && d.receiverId is string
+          && d.senderId.matches('[A-Za-z0-9_-]{1,128}') && d.receiverId.matches('[A-Za-z0-9_-]{1,128}')
+          && d.senderId != d.receiverId && d.members == [d.senderId,d.receiverId]
+          && d.sourceMovieId is string && d.sourceMovieId.matches('[A-Za-z0-9_-]{1,500}')
+          && jointId == d.senderId + ':' + d.receiverId + ':' + d.sourceMovieId
+          && d.status in ['pending','accepted','declined','cancelled']
+          && d.movie is map && d.movie.userId == d.senderId && d.movie.isDuo == true
+          && d.movie.get('jointPartnerId', '') == d.receiverId && d.movie.get('jointFirstId', '') == d.senderId
+          && d.createdAt is timestamp && d.updatedAt is timestamp;
+      }
+      // Формат исходника и копии проверяется правилами movies, содержимое связывается точным сравнением.
+      function sameSource(d) { return getAfter(/databases/$(database)/documents/movies/$(d.sourceMovieId)).data == d.movie; }
+      function acceptedCopy(d) {
+        let copy = getAfter(/databases/$(database)/documents/movies/$('joint-' + jointId)).data;
+        return copy.userId == d.receiverId && copy.get('jointPartnerId', '') == d.senderId
+          && copy.diff(d.movie).affectedKeys().hasOnly(['userId','authorName','authorPhoto','timestamp','jointPartnerId','jointPartnerName']);
+      }
+      allow get: if request.auth != null && !exists(/databases/$(database)/documents/jointRatings/$(jointId))
+        && jointId.matches(request.auth.uid + ':[A-Za-z0-9_-]{1,128}:[A-Za-z0-9_-]{1,500}');
+      allow read: if member(resource.data);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId
+        && validJoint(request.resource.data) && request.resource.data.status == 'pending'
+        && confirmedFriend(request.resource.data.receiverId) && sameSource(request.resource.data)
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if member(resource.data) && validJoint(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && ((request.auth.uid == resource.data.senderId
+          && resource.data.status in ['pending','declined','cancelled']
+          && ((request.resource.data.status == 'pending' && confirmedFriend(resource.data.receiverId)
+            && sameSource(request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','movie','updatedAt']))
+            || (resource.data.status == 'pending' && request.resource.data.status == 'cancelled'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt']))))
+          || (request.auth.uid == resource.data.receiverId && resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+            && (request.resource.data.status == 'declined'
+              || (request.resource.data.status == 'accepted' && confirmedFriend(resource.data.senderId) && acceptedCopy(request.resource.data)))));
     }
     // Планы видны владельцу и подтверждённым друзьям для совместного выбора.
     match /plans/{planId} {

@@ -37,6 +37,7 @@
 
     <main class="archive-container plans-page">
         <div class="section-topline"><div><h1>Хочу посмотреть</h1><p>Твои планы на следующие киносеансы.</p></div><a href="catalog.html" class="btn-retro">Добавить из каталога</a></div>
+        <div class="plans-transfer"><button id="plans-to-roulette" type="button" class="btn-retro pine" disabled>Все в рулетку</button><span id="plans-transfer-status" role="status" aria-live="polite"></span><a id="plans-open-roulette" href="roulette.html" class="text-button" hidden>Открыть рулетку ↗</a></div>
         <div class="plans-controls"><input id="plans-search" type="search" placeholder="Найти в планах" aria-label="Поиск по планам"><select id="plans-type" aria-label="Тип"><option value="">Все тайтлы</option><option value="movie">Фильмы</option><option value="tv">Сериалы и аниме</option></select><select id="plans-genre" aria-label="Жанр"><option value="">Все жанры</option></select><select id="plans-sort" aria-label="Сортировка"><option value="new">Сначала добавленные недавно</option><option value="title">По названию</option></select></div>
         <div class="section-topline"><p id="plans-status" role="status"></p><button id="plans-retry" class="text-button">Обновить</button></div>
         <div id="plans-grid" class="plans-grid" aria-busy="true"></div>

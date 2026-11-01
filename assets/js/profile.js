@@ -1,3 +1,4 @@
+import { createJointInbox } from './joint-rating-inbox.js';
 import { createComparison } from './compare.js';
 import { createProfileRatings } from './profile-ratings.js';
 import { prepareProfileImage } from './profile-images.js';
@@ -7,6 +8,7 @@ import { validUserId, safeAvatar, ensureProfile, getProfile, saveProfile, watchF
 const element = id => document.getElementById(id);
 const status = element('profile-status');
 const ratings = createProfileRatings();
+const jointInbox=createJointInbox();
 let currentUser, targetProfile, relationships = [], unsubscribe, generation = 0, searchGeneration = 0, searchProfile = null, friendsReady = false;
 const people = new Map();
 const busyRelationships = new Set();
@@ -44,6 +46,7 @@ function showProfile(profile) {
     showBanner(element('profile-cover'), profile.bannerURL);
     element('profile-card').hidden = false;
     const own = profile.uid === currentUser.uid;
+    jointInbox.setUser(currentUser,own);
     element('own-profile').hidden = !own;
     element('page-heading').textContent = own ? 'МОЙ ПРОФИЛЬ' : 'ПРОФИЛЬ УЧАСТНИКА';
     element('edit-profile').hidden = !own;
@@ -178,6 +181,7 @@ element('retry-friends').addEventListener('click', listenFriends);
 
 async function initialize(user) {
     const session = ++generation;
+    jointInbox.setUser(user,false);
     comparison.setAccess('','',false);
     ratings.setAccess('', false);
     unsubscribe?.(); unsubscribe = null; friendsReady = false; relationships = []; people.clear(); searchProfile = null;
@@ -202,7 +206,7 @@ onAuthStateChanged(auth, user => {
     if (!user) { ratings.setAccess('', false); generation++; unsubscribe?.(); window.location.href = '../index.html'; return; }
     currentUser = user; initialize(user);
 });
-window.addEventListener('pagehide', () => { comparison.setAccess('','',false);ratings.setAccess('', false); unsubscribe?.(); unsubscribe = null; friendsReady = false; });
+window.addEventListener('pagehide', () => {jointInbox.setUser(null,false); comparison.setAccess('','',false);ratings.setAccess('', false); unsubscribe?.(); unsubscribe = null; friendsReady = false; });
 window.addEventListener('pageshow', event => { if (event.persisted && currentUser && targetProfile) listenFriends(); });
 element('profile-retry').addEventListener('click', () => initialize(currentUser));
 element('sidebar-logout').addEventListener('click', () => signOut(auth).catch(() => message('Не удалось выйти. Попробуйте ещё раз.', true)));

@@ -155,8 +155,10 @@ function openArchiveModal(m) {
     document.getElementById('am-title').textContent = m.title;
     modal.querySelector('.archive-detail-box').classList.toggle('is-masterpiece',Number(m.score)===10);
     document.getElementById('am-distinction').hidden=Number(m.score)!==10;
-    document.getElementById('am-participants').textContent=m.isDuo?'Совместная оценка':'Личная оценка';
+    document.getElementById('am-participants').textContent=m.isDuo?(m.jointPartnerName?'Вместе с '+m.jointPartnerName:'Совместная оценка'):'Личная оценка';
     document.getElementById('am-duo-legend').hidden=!m.isDuo||m.ratingMode==='quick';
+    const participantNames=m.jointPartnerId?[m.jointFirstId===m.userId?m.authorName:m.jointPartnerName,m.jointFirstId===m.userId?m.jointPartnerName:m.authorName]:['Оценка 1','Оценка 2'];
+    document.querySelectorAll('#am-duo-legend span').forEach((label,index)=>{label.textContent=participantNames[index]||`Оценка ${index+1}`;label.title=label.textContent;});
     document.getElementById('am-genres').textContent = m.genres || 'Жанр неизвестен';
     document.getElementById('am-score').textContent = Number(m.score).toFixed(1);
     document.getElementById('am-date').textContent = m.date || 'Дата не указана';

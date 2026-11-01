@@ -70,6 +70,7 @@
                         <input type="checkbox" id="is-duo-checkbox">
                         Парная совместная оценка <svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>
                     </label>
+                    <section id="joint-friend-area" class="joint-friend-area" hidden><div class="section-topline"><label for="joint-friend-select">С кем оценивали?</label><button id="joint-friends-retry" type="button" class="text-button">Обновить</button></div><select id="joint-friend-select" aria-describedby="joint-friend-status"><option value="">Без привязки к профилю</option></select><p id="joint-friend-status" role="status"></p></section>
                     <div class="sliders-wrapper" id="sliders-wrapper">
                         <div class="user-column" id="user1-col">
                             <div class="hidden col-title" id="user1-title">Твои оценки</div>
@@ -83,7 +84,7 @@
                             <div class="range-group"><label><span class="rg-name"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>Впечатление</span> <span id="val-impression-1" class="val-display">4.0</span></label><input type="range" id="impression-1" min="0.1" max="5" step="0.1" value="4.0"></div>
                         </div>
                         <div class="user-column hidden" id="user2-col">
-                            <div class="col-title">Её оценки</div>
+                            <div class="col-title" id="user2-title">Оценки второго участника</div>
                             <div class="range-group"><label><span class="rg-name"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg>Сценарий</span> <span id="val-script-2" class="val-display">7.0</span></label><input type="range" id="script-2" min="0.1" max="10" step="0.1" value="7.0"></div>
                             <div class="range-group"><label><span class="rg-name"><svg class="ic" aria-hidden="true"><use href="#i-drama"/></svg>Актеры</span> <span id="val-actors-2" class="val-display">7.0</span></label><input type="range" id="actors-2" min="0.1" max="10" step="0.1" value="7.0"></div>
                             <div class="range-group"><label><span class="rg-name"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg>Режиссура</span> <span id="val-directing-2" class="val-display">7.0</span></label><input type="range" id="directing-2" min="0.1" max="10" step="0.1" value="7.0"></div>

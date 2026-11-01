@@ -10,7 +10,7 @@ const firebase = `
 export const auth = { currentUser: window.__signedOut ? null : { uid: window.__viewer || 'owner', displayName: 'Тест', photoURL: null } }, db = {}, provider = {};
 export const onAuthStateChanged = (auth, callback) => setTimeout(() => callback(auth.currentUser), window.__authDelay || 0);
 export const signOut = async () => {}, signInWithPopup = async () => {};
-export const collection = (db, name) => ({name}), doc = (db, name, id) => ({name,id});
+export const collection = (db, name) => ({name}), doc = (db, name, id) => name ? ({name,id}) : ({name:db.name,id:'auto-'+(window.__autoId=(window.__autoId||0)+1)});
 export const where = (...args) => ({where:args}), orderBy = (...args) => ({orderBy:args}), limit = n => ({limit:n}), startAfter = d => ({cursor:d.id});
 export const query = (ref, ...constraints) => ({...ref, constraints});
 export const getDocs = async q => {
@@ -18,7 +18,7 @@ export const getDocs = async q => {
  await new Promise(resolve => setTimeout(resolve, window.__archiveDelay || 0));
  if (window.__archiveFailOnce) {window.__archiveFailOnce=false; throw new Error('Проверка повторной загрузки');}
  const cursor = q.constraints.find(c => c.cursor)?.cursor;
- let data = q.name === 'plans' ? Object.entries(window.__plans || {}).map(([id,m])=>({...m,id})) : q.name === 'friendships' ? Object.entries(window.__friendRecords || {}).map(([id,m])=>({...m,id})) : window.__movies || [];
+ let data = q.name === 'jointRatings' ? Object.entries(window.__jointRecords || {}).map(([id,m])=>({...m,id})) : q.name === 'plans' ? Object.entries(window.__plans || {}).map(([id,m])=>({...m,id})) : q.name === 'friendships' ? Object.entries(window.__friendRecords || {}).map(([id,m])=>({...m,id})) : window.__movies || [];
  const member=q.constraints.find(c=>c.where?.[0]==='members')?.where[2];if(member)data=data.filter(m=>m.members.includes(member));
  const owner = q.constraints.find(c => c.where?.[0] === 'userId')?.where[2];
  if (owner) data = data.filter(movie => movie.userId === owner);
@@ -30,13 +30,13 @@ export const getDocs = async q => {
 const profileData = () => window.__profiles ||= {owner:{displayName:'Тест',bio:'',photoURL:''}};
 const friendData = () => window.__friendRecords ||= {};
 const snapshot = ref => {
- const value = ref.name === 'profiles' ? profileData()[ref.id] : ref.name === 'friendships' ? friendData()[ref.id] : ref.name === 'plans' ? (window.__plans||{})[ref.id] : ref.name==='movies' ? (window.__movies||[]).find(m=>m.id===ref.id) : {text:window.__roulette || ''};
+ const value = ref.name === 'profiles' ? profileData()[ref.id] : ref.name === 'friendships' ? friendData()[ref.id] : ref.name === 'jointRatings' ? (window.__jointRecords||{})[ref.id] : ref.name === 'plans' ? (window.__plans||{})[ref.id] : ref.name==='movies' ? (window.__movies||[]).find(m=>m.id===ref.id) : {text:window.__roulette || ''};
  return {exists:()=>!!value,data:()=>value};
 };
 let listener;
 const notify = () => setTimeout(() => listener?.({docs:Object.entries(friendData()).filter(([,data])=>data.members.includes(auth.currentUser.uid)).map(([id,data])=>({id,data:()=>data}))}),0);
 export const getDoc = async ref => snapshot(ref);
-export const setDoc = async (ref,data) => {window.__cloud = {ref,data};if(ref.name==='plans'){window.__plans||={};window.__plans[ref.id]=data;}};
+export const setDoc = async (ref,data) => {window.__cloud = {ref,data};if(ref.name==='roulette')window.__roulette=data.text;if(ref.name==='plans'){window.__plans||={};window.__plans[ref.id]=data;}};
 export const addDoc = async (ref,data) => {window.__saved = data; return {id:'saved'};};
 export const deleteDoc = async ref => {window.__deleted=ref;if(ref.name==='plans')delete (window.__plans||{})[ref.id]; if(ref.name === 'friendships'){delete friendData()[ref.id];notify();}};
 export const updateDoc = async (ref,data) => {
@@ -47,9 +47,10 @@ export const updateDoc = async (ref,data) => {
 };
 export const runTransaction = async (db, callback) => {
  const writes=[];
- await callback({get:async ref=>snapshot(ref),set:(ref,data)=>writes.push([ref,data])});
- writes.forEach(([ref,data])=>{if(ref.name === 'profiles')profileData()[ref.id]=data;else if(ref.name === 'friendships')friendData()[ref.id]=data;});
- notify();
+ const result=await callback({get:async ref=>snapshot(ref),set:(ref,data)=>writes.push([ref,data])});
+ if(window.__transactionFailOnce){window.__transactionFailOnce=false;throw new Error('Проверка атомарности');}
+ writes.forEach(([ref,data])=>{if(ref.name === 'profiles')profileData()[ref.id]=data;else if(ref.name === 'friendships')friendData()[ref.id]=data;else if(ref.name==='jointRatings'){window.__jointRecords||={};window.__jointRecords[ref.id]=data;}else if(ref.name==='movies'){window.__movies||=[];const index=window.__movies.findIndex(m=>m.id===ref.id);if(index>=0)window.__movies[index]={...data,id:ref.id};else window.__movies.push({...data,id:ref.id});}else if(ref.name==='roulette'){window.__roulette=data.text;window.__cloud={ref,data};}});
+ notify();return result;
 };
 export const onSnapshot = (q,next,error) => {listener=next;notify();return ()=>{listener=null;};};
 export const serverTimestamp = () => 'SERVER_TIMESTAMP';
@@ -475,6 +476,17 @@ try {
         await page.locator('#plans-type').selectOption('tv');assert.equal(await page.locator('.plan-card').count(),0);
         await page.locator('#plans-type').selectOption('movie');assert.equal(await page.locator('.plan-card').count(),1);
         await page.getByRole('button',{name:'Убрать',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.plan-card').length===0);await page.close();
+    });
+    await test('Все планы добавляются в рулетку одной кнопкой без потери списка и повторов',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>{localStorage.removeItem('roulettePending:owner');localStorage.removeItem('rouletteList:owner');window.__roulette='Сталкер\nМатрица';window.__plans={'owner:movie:1':{userId:'owner',tmdbId:1,mediaType:'movie',title:'Сталкер',genres:'Драма'},'owner:movie:2':{userId:'owner',tmdbId:2,mediaType:'movie',title:'  матрица  ',genres:'Фантастика'},'owner:movie:3':{userId:'owner',tmdbId:3,mediaType:'movie',title:'Тоторо',genres:'Мультфильм'}};});await page.goto(`${base}/pages/plans.html`);await page.waitForFunction(()=>!document.getElementById('plans-to-roulette').disabled);await page.locator('#plans-to-roulette').click();await page.waitForFunction(()=>document.getElementById('plans-transfer-status').textContent.includes('Добавлено: 1'));assert.equal(await page.evaluate(()=>window.__roulette),'Сталкер\nМатрица\nТоторо');await page.locator('#plans-to-roulette').click();await page.waitForFunction(()=>document.getElementById('plans-transfer-status').textContent.includes('Все фильмы уже'));assert.equal(await page.locator('.plan-card').count(),3);assert.equal(await page.locator('#plans-open-roulette').isVisible(),true);await page.close();
+    });
+    await test('Выбор друга отправляет совместную оценку, подтверждение создаёт вторую копию',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>{window.__profiles={owner:{displayName:'Первый',bio:'',photoURL:''},friend:{displayName:'Второй',bio:'',photoURL:''}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__movies=[];});await page.goto(`${base}/pages/rate.html?id=123&type=movie`);await page.waitForFunction(()=>!document.getElementById('movie-preview').classList.contains('hidden'));await page.locator('#is-duo-checkbox').check();await page.waitForSelector('#joint-friend-select option[value="friend"]',{state:'attached'});await page.locator('#joint-friend-select').selectOption('friend');await page.locator('#val-script-1').fill('9');await page.locator('#val-script-1').press('Tab');await page.locator('#val-script-2').fill('5');await page.locator('#val-script-2').press('Tab');await page.locator('#review-text').fill('Наш общий отзыв');if(process.env.JOINT_PREVIEW)await page.locator('.rating-editor').screenshot({path:'/tmp/plus-joint-editor.png'});await page.locator('#save-btn').click();await page.waitForFunction(()=>Object.keys(window.__jointRecords||{}).length===1);const state=await page.evaluate(()=>({joint:window.__jointRecords,movies:window.__movies}));assert.equal(state.movies.length,1);assert.equal(state.movies[0].jointPartnerId,'friend');assert.equal(Object.values(state.joint)[0].status,'pending');await page.close();
+        const recipient=await context.newPage();await recipient.addInitScript(state=>{window.__viewer='friend';window.__profiles={owner:{displayName:'Первый',bio:'',photoURL:''},friend:{displayName:'Второй',bio:'',photoURL:''}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__jointRecords=state.joint;window.__movies=state.movies;},state);await recipient.goto(`${base}/pages/profile.html`);if(process.env.JOINT_PREVIEW){await recipient.locator('#joint-inbox-list .joint-invite').waitFor();await recipient.locator('#joint-inbox').screenshot({path:'/tmp/plus-joint-invitation.png'});}await recipient.getByRole('button',{name:'Подтвердить',exact:true}).click();await recipient.waitForFunction(()=>Object.values(window.__jointRecords)[0].status==='accepted');const records=await recipient.evaluate(()=>window.__movies);assert.equal(records.length,2);const copy=records.find(m=>m.userId==='friend');assert.equal(copy.review,'Наш общий отзыв');assert.deepEqual(copy.stats,state.movies[0].stats);assert.equal(copy.score,state.movies[0].score);assert.equal(copy.jointPartnerId,'owner');assert.equal(copy.jointFirstId,'owner');assert.equal(await recipient.getByRole('button',{name:'Подтвердить',exact:true}).count(),0);await recipient.close();
+        const edit=await context.newPage();await edit.addInitScript(records=>{window.__viewer='friend';window.__profiles={friend:{displayName:'Второй',bio:'',photoURL:''},owner:{displayName:'Первый',bio:'',photoURL:''}};window.__movies=records;},records);await edit.goto(`${base}/pages/rate.html?edit=${encodeURIComponent(copy.id)}`);await edit.waitForFunction(()=>document.querySelector('.rate-page-heading h1').textContent==='Изменить оценку');assert.equal(await edit.locator('#val-script-1').inputValue(),'5.0');assert.equal(await edit.locator('#val-script-2').inputValue(),'9.0');assert.equal(await edit.locator('#joint-friend-select').isDisabled(),true);await edit.locator('#save-btn').click();await edit.waitForFunction(()=>!!window.__updated);assert.equal(await edit.evaluate(()=>window.__updated.data.stats.script),'5.0/9.0');assert.equal(await edit.evaluate(()=>Object.keys(window.__jointRecords||{}).length),0);await edit.close();
+    });
+    await test('Удалённый друг и ошибка транзакции не оставляют половину совместной оценки',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>{window.__profiles={owner:{displayName:'Я'},friend:{displayName:'Друг'}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__movies=[];});await page.goto(`${base}/pages/rate.html?id=123&type=movie`);await page.waitForFunction(()=>!document.getElementById('movie-preview').classList.contains('hidden'));await page.locator('#is-duo-checkbox').check();await page.waitForSelector('#joint-friend-select option[value="friend"]',{state:'attached'});await page.locator('#joint-friend-select').selectOption('friend');await page.evaluate(()=>{window.__transactionFailOnce=true;});await page.locator('#save-btn').click();await page.waitForFunction(()=>!document.getElementById('save-btn').disabled);assert.equal(await page.evaluate(()=>window.__movies.length),0);assert.equal(await page.evaluate(()=>Object.keys(window.__jointRecords||{}).length),0);await page.evaluate(()=>{window.__friendRecords={};});await page.locator('#save-btn').click();await page.waitForFunction(()=>!document.getElementById('save-btn').disabled);assert.equal(await page.evaluate(()=>window.__movies.length),0);await page.close();
     });
     await test('Сохранённая оценка редактируется без новой записи и без смены даты', async () => {
         const page=await context.newPage();await page.addInitScript(()=>{window.__movies=[{id:'existing',userId:'owner',tmdbId:123,mediaType:'movie',type:'movie',title:'Тест',score:7.2,poster:'',genres:'Драма',timestamp:{seconds:100},date:'01.01.2026',review:'Раньше',isDuo:false,stats:{script:'7.0',actors:'7.0',directing:'7.0',chars:'7.0',idea:'7.0',atmosphere:'4.0',impression:'4.0'}}];});

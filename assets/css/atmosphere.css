@@ -96,3 +96,32 @@ input:not([type='range']):not([type='checkbox']):focus,textarea:focus,select:foc
     .movie-card,.catalog-card,.profile-rating-card,.collection-card,.btn-retro,.profile-primary,.profile-small-btn,.cat-plan-toggle,.card-cover,.cat-poster,.home-cover-art>img,.profile-rating-frame>img { transition:none !important; }
     .movie-card:hover,.catalog-card:hover,.btn-retro:hover,.profile-primary:hover,.collection-card:hover>img,.home-cover-art:hover>img,.movie-card:hover .card-cover,.catalog-card:hover .cat-poster,.profile-rating-card:hover .profile-rating-frame>img { transform:none; }
 }
+
+/* Совместная оценка сохраняет понятную связь между участниками. */
+.plans-transfer { display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:22px 0; }
+.plans-transfer .btn-retro { padding:12px 17px;font-size:.8rem; }
+#plans-transfer-status { color:#a9c4b6;font-size:.78rem;line-height:1.5; }
+.joint-friend-area { border:1px solid #4a685d;background:linear-gradient(135deg,#294639,#233b43);border-radius:12px;padding:18px;margin:0 0 24px; }
+.joint-friend-area .section-topline { margin-bottom:12px; }
+.joint-friend-area label { color:#c1d6c6;font-size:.82rem;font-weight:600; }
+.joint-friend-area select { width:100%;background:#152c30;border:1px solid #607e71;border-radius:8px;color:#d1e0d6;padding:11px;font:inherit;font-size:.8rem; }
+#joint-friend-status,.joint-inbox-note { color:#9ebbad;font-size:.75rem;line-height:1.7;margin:12px 0 0; }
+.joint-inbox { margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid #3f5c53; }
+.joint-inbox h2 { font-size:1.25rem; }
+.joint-inbox .section-topline { margin-bottom:12px; }
+#joint-inbox-status { color:#a7c2b8;font-size:.8rem;margin:15px 0; }
+#joint-inbox-list { display:grid;gap:14px; }
+.joint-invite { display:grid;grid-template-columns:65px minmax(0,1fr);gap:17px;padding:18px;border:1px solid #49645e;border-radius:12px;background:linear-gradient(135deg,#233d33,#233844); }
+.joint-invite>img { width:65px;height:96px;object-fit:cover;border-radius:6px; }
+.joint-invite h3 { font:600 .95rem 'DM Sans',system-ui,sans-serif; }
+.joint-invite p { color:#a5bfb4;font-size:.76rem;line-height:1.7;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere; }
+.joint-invite details { color:#a8c1b7;font-size:.75rem;margin:12px 0; }
+.joint-invite summary { cursor:pointer; }
+.joint-invite-stats { margin:12px 0; }
+.joint-invite-stats>div { display:flex;justify-content:space-between;gap:15px;padding:5px 0; }
+.joint-invite-stats dd { color:#c7d8c5; }
+.joint-invite-actions { display:flex;gap:9px;flex-wrap:wrap;margin-top:12px; }
+.joint-invite-actions button { font-size:.74rem;padding:9px 13px; }
+@media(max-width:480px){.joint-invite{grid-template-columns:44px minmax(0,1fr);gap:12px;padding:14px}.joint-invite>img{width:44px;height:66px}.joint-friend-area{padding:15px}}
+.archive-duo-legend { flex-wrap:wrap; }
+.archive-duo-legend>span { max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5; }
