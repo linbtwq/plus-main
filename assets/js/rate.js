@@ -7,7 +7,7 @@ const ratingMode = 'detailed';
 let editingRecord=null;
 let selectedMovie = null;
 let selectedTmdbId = null, selectedMediaType = null, searchRequest = 0, saving = false;
-let currentUser = null, currentScore = 0, selectedPoster = '', selectedGenres = '', tmdbRating = 0;
+let currentUser = null, currentScore = 0, selectedPoster = '', selectedGenres = '';
 
 const GENRE_MAP = { 28: "Боевик", 12: "Приключения", 16: "Мультфильм", 35: "Комедия", 80: "Криминал", 99: "Документальный", 18: "Драма", 10751: "Семейный", 14: "Фэнтези", 36: "История", 27: "Ужасы", 10402: "Музыка", 9648: "Детектив", 10749: "Мелодрама", 878: "Фантастика", 10770: "ТВ фильм", 53: "Триллер", 10752: "Военный", 37: "Вестерн", 10759: "Боевик/Прикл.", 10762: "Детский", 10763: "Новости", 10764: "Реалити", 10765: "Фантастика/Фэнтези", 10766: "Мыльная опера", 10767: "Ток-шоу", 10768: "Война/Политика" };
 
@@ -64,7 +64,8 @@ function showSuggestions(movies) {
 
     movies.forEach(m => {
         const div = document.createElement('div');
-        div.className = 'suggestion-item';
+        div.className = 'suggestion-item';div.tabIndex=0;div.setAttribute('role','button');div.setAttribute('aria-label',`Оценить: ${m.title||m.name}`);
+        div.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();div.click();}if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();(event.key==='ArrowDown'?div.nextElementSibling:div.previousElementSibling)?.focus();}if(event.key==='Escape'){suggestionsBox.style.display='none';titleInput.focus();}});
         const title = m.title || m.name;
         const thumb = document.createElement('img');
         thumb.src = m.poster_path ? `https://image.tmdb.org/t/p/w92${m.poster_path}` : NO_IMG;
@@ -80,7 +81,6 @@ function showSuggestions(movies) {
             selectedTmdbId = m.id; selectedMediaType = m.media_type;
             titleInput.value = title;
             selectedPoster = m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : '';
-            tmdbRating = m.vote_average || 0;
             
             let mediaType = 'movie';
             if (m.media_type === 'tv') mediaType = (m.original_language === 'ja' && m.genre_ids?.includes(16)) ? 'anime' : 'series';
@@ -106,7 +106,7 @@ function showSuggestions(movies) {
 
 document.getElementById('clear-preview').addEventListener('click', () => {
     searchRequest++; abortController?.abort(); clearTimeout(searchTimer); selectedTmdbId = null; selectedMediaType = null; selectedMovie = null;
-    titleInput.value = ''; selectedPoster = ''; selectedGenres = ''; tmdbRating = 0;
+    titleInput.value = ''; selectedPoster = ''; selectedGenres = '';
     previewBox.classList.add('hidden'); document.getElementById('search-wrapper').style.display = 'block'; titleInput.focus();
 });
 
@@ -153,7 +153,8 @@ function calculate() {
 
     const colorCls = ['color-red', 'color-orange', 'color-yellow', 'color-lime', 'color-green', 'color-gold'].find(c => display.classList.contains(c));
     const ring = document.getElementById('score-ring');
-    if (ring) { ring.className = 'score-ring ' + colorCls; ring.style.setProperty('--score', (currentScore * 10).toFixed(1)); }
+    if (ring) { const wasMaximum=ring.dataset.maximum==='true';ring.dataset.maximum=String(currentScore===10);ring.className = 'score-ring ' + colorCls;
+        if(currentScore===10&&!wasMaximum&&!matchMedia('(prefers-reduced-motion: reduce)').matches)ring.classList.add('is-maximum'); ring.style.setProperty('--score', (currentScore * 10).toFixed(1)); }
     const mini = document.getElementById('mini-score');
     if (mini) { mini.className = 'mini-score ' + colorCls + (mini.classList.contains('show') ? ' show' : ''); document.getElementById('mini-val').textContent = currentScore.toFixed(1); }
 }
@@ -351,3 +352,6 @@ for(const group of document.querySelectorAll('.range-group')){
     const summary=document.createElement('summary');summary.textContent='Что оцениваем';
     const text=document.createElement('p');text.textContent=criterionHints[key];help.append(summary,text);group.append(help);
 }
+
+// Подсказки доступны без мыши: стрелка вниз переводит фокус на результат.
+titleInput.addEventListener('keydown',event=>{if(event.key==='ArrowDown'&&suggestionsBox.style.display!=='none'&&suggestionsBox.firstElementChild){event.preventDefault();suggestionsBox.firstElementChild.focus();}if(event.key==='Escape')suggestionsBox.style.display='none';});

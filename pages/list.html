@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta charset="UTF-8">
     <title>plus.plus | Киноархив</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body>
@@ -30,7 +30,7 @@
             <a href="rate.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></span> Оценить</a>
             <a href="list.html" class="side-link active"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
             <a href="plans.html" class="side-link">♡ Хочу посмотреть</a>
-            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Слот</a>
+            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Рулетка</a>
             <a href="profile.html" class="side-link"><span aria-hidden="true">◎</span> Профиль и друзья</a>
         </nav>
         <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
@@ -58,7 +58,7 @@
                     <button class="cat-btn type-btn" data-type="series">Сериалы</button>
                 </div>
                 <div class="sort-selector" id="custom-sort">
-                    <div class="sort-chosen" id="dropdown-selected">Сначала новые <span>▼</span></div>
+                    <button type="button" class="sort-chosen" id="dropdown-selected" aria-expanded="false" aria-controls="dropdown-options">Сначала новые <span>▼</span></button>
                     <div class="sort-popout" id="dropdown-options">
                         <div class="sort-opt active" data-value="new">Сначала новые</div>
                         <div class="sort-opt" data-value="high">Топ балл</div>
@@ -85,7 +85,7 @@
         <a href="catalog.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-popcorn"/></svg></i><span>Каталог</span></a>
         <a href="rate.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></i><span>Оценка</span></a>
         <a href="list.html" class="dock-btn active"><i><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></i><span>Архив</span></a>
-        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Слот</span></a>
+        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Рулетка</span></a>
     </nav>
 
     <!-- Подробности оценки: отдельные блоки результата, критериев и отзыва. -->
@@ -94,7 +94,7 @@
             <button id="close-archive-modal" class="clear-btn" type="button" aria-label="Закрыть оценку"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
             <header class="archive-detail-header">
                 <img id="am-poster" class="archive-modal-poster" src="" alt="">
-                <div class="archive-detail-identity"><span class="archive-detail-eyebrow">ИЗ ТВОЕГО АРХИВА</span><h2 id="am-title">Название</h2><p id="am-genres"></p><div class="archive-result"><div><span id="am-score">8.5</span><span class="archive-result-scale">/ 10</span></div><div class="archive-result-meta"><span id="am-participants">Личная оценка</span><time id="am-date"></time></div></div></div>
+                <div class="archive-detail-identity"><span class="archive-detail-eyebrow">ИЗ ТВОЕГО АРХИВА</span><span id="am-distinction" class="masterpiece-detail-label" hidden>Шедевр · 10 из 10</span><h2 id="am-title">Название</h2><p id="am-genres"></p><div class="archive-result"><div><span id="am-score">8.5</span><span class="archive-result-scale">/ 10</span></div><div class="archive-result-meta"><span id="am-participants">Личная оценка</span><time id="am-date"></time></div></div></div>
             </header>
             <div class="archive-detail-body">
                 <section class="archive-criteria-section"><div class="archive-section-heading"><h3 id="am-criteria-heading">По критериям</h3><div id="am-duo-legend" class="archive-duo-legend" hidden><span>Оценка 1</span><span>Оценка 2</span></div></div>
@@ -123,6 +123,7 @@
         </div>
     </div>
     <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/interface.js"></script>
     <script type="module" src="../assets/js/list.js"></script>
 </body>
 </html>

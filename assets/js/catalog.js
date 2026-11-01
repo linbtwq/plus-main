@@ -28,7 +28,7 @@ document.getElementById('close-detail')?.addEventListener('click', () => {
     if (detailModal) detailModal.classList.add('hidden'); 
 });
 
-let currentPage = 1, currentFilter = 'trending', isLoading = false;
+let currentPage = 1, currentFilter = 'trending', browsingFilter='trending', isLoading = false;
 let catalogController, catalogRequest = 0, detailRequest = 0, searchQuery = '';
 let appliedFilters = {...FILTER_DEFAULTS};
 const filterForm = document.getElementById('catalog-filter-form');
@@ -69,7 +69,7 @@ async function loadCatalog(isLoadMore = false) {
         if (!isLoadMore) { catalogGrid.replaceChildren(); renderSpotlight(filter === 'trending' && !hasCatalogFilters(appliedFilters) ? data.results.find(item => ['movie','tv'].includes(item.media_type) && item.backdrop_path) : null); }
         data.results.filter(item => !item.media_type || ['movie', 'tv'].includes(item.media_type))
             .forEach(item => renderCatalogCard(item, hasCatalogFilters(appliedFilters) && !['tv','anime','search'].includes(filter) ? 'movie' : filter));
-        if (!catalogGrid.children.length) emptyState(catalogGrid,'Ничего не нашлось','Попробуй другой запрос или смягчи фильтры.',{label:'Сбросить подбор',run:()=>{filterForm.reset();appliedFilters={...FILTER_DEFAULTS};searchInput.value='';searchQuery='';currentFilter='trending';filterBtns.forEach(b=>b.classList.toggle('active',b.dataset.type==='trending'));updateFilterAvailability();loadCatalog();}});
+        if (!catalogGrid.children.length) emptyState(catalogGrid,'Ничего не нашлось','Попробуй другой запрос или смягчи фильтры.',{label:'Сбросить подбор',run:()=>{filterForm.reset();appliedFilters={...FILTER_DEFAULTS};searchInput.value='';searchQuery='';currentFilter=browsingFilter='trending';filterBtns.forEach(b=>b.classList.toggle('active',b.dataset.type==='trending'));updateFilterAvailability();loadCatalog();}});
         document.getElementById('catalog-results-summary').textContent = data.total_results ? `Найдено: ${data.total_results.toLocaleString('ru-RU')}` : '';
         currentPage = page + 1;
         loadMoreBtn.style.display = page < Math.min(data.total_pages || 1, 500) ? 'block' : 'none';
@@ -84,7 +84,7 @@ async function loadCatalog(isLoadMore = false) {
 }
 
 if (filterBtns.length > 0) {
-    filterBtns.forEach(btn => { btn.addEventListener('click', () => { filterBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); clearTimeout(searchTimer); searchInput.value = ''; searchQuery = ''; currentFilter = btn.getAttribute('data-type'); updateFilterAvailability(); loadCatalog(); }); });
+    filterBtns.forEach(btn => { btn.addEventListener('click', () => { filterBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); clearTimeout(searchTimer); searchInput.value = ''; searchQuery = ''; currentFilter = browsingFilter = btn.getAttribute('data-type'); updateFilterAvailability(); loadCatalog(); }); });
 }
 
 if (loadMoreBtn) {
@@ -118,7 +118,6 @@ function renderCatalogCard(m, filter = currentFilter) {
         <div class="cat-poster-wrapper">
             <img src="${escapeHtml(poster)}" class="cat-poster" loading="lazy" alt="${escapeHtml(title)}">
             <span class="cat-play-mark" aria-hidden="true">▶</span>
-            ${typeof m.vote_average === 'number' && m.vote_average > 0 ? `<span class="cat-score">★ ${m.vote_average.toFixed(1)}</span>` : ''}
         </div>
         <div class="cat-info"><div class="cat-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div><div class="cat-genres">${escapeHtml(genres)}</div></div>
     `;
@@ -136,13 +135,14 @@ function renderCatalogCard(m, filter = currentFilter) {
     card.addEventListener('mouseenter', () => { rect = wrapper.getBoundingClientRect(); });
 
     card.addEventListener('mousemove', (e) => {
+            if(!matchMedia('(hover: hover) and (pointer: fine)').matches||matchMedia('(prefers-reduced-motion: reduce)').matches||card.closest('.archive-list'))return;
         if (!wrapper || !rect) return;
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
         if (rafId) cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(() => {
-            wrapper.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -4}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 4}deg) scale3d(1.03, 1.03, 1.03)`;
+            wrapper.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -2}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 2}deg) scale3d(1.01, 1.01, 1.01)`;
         });
     });
 
@@ -186,8 +186,6 @@ async function openDetailModal(id, mediaType) {
         
         if (titleEl) titleEl.textContent = title;
         
-        const ratingEl = document.getElementById('detail-rating');
-        if (ratingEl) ratingEl.textContent = `⭐ ${data.vote_average ? data.vote_average.toFixed(1) : '?'}`;
         
         const yearEl = document.getElementById('detail-year');
         if (yearEl) yearEl.textContent = (data.release_date || data.first_air_date || '').split('-')[0];
@@ -259,7 +257,7 @@ if (searchInput) {
         isLoading = false;
         loadMoreBtn.disabled = true;
         searchQuery = searchInput.value.trim();
-        currentFilter = searchQuery ? 'search' : 'trending';
+        currentFilter = searchQuery ? 'search' : browsingFilter;
         filterBtns.forEach(button => button.classList.toggle('active', button.dataset.type === currentFilter));
         searchTimer = setTimeout(() => loadCatalog(), 350);
     });
@@ -281,7 +279,8 @@ for (const modal of [detailModal, trailerModal]) modalObserver.observe(modal, {a
 
 // Фильтры отправляются в Discover: подбор применяется ко всему каталогу.
 function updateFilterAvailability() {
-    const tv = ['tv','anime'].includes(currentFilter);
+    const context=currentFilter==='search'?browsingFilter:currentFilter;
+    const tv = ['tv','anime'].includes(context);
     for (const select of [filterForm.elements.genre,filterForm.elements.exclude]) {
         const movieOnly=[28,12,14,36,27,10402,10749,878,10770,53,10752];
         const tvOnly=[10759,10762,10763,10764,10765,10766,10767,10768];
@@ -291,8 +290,8 @@ function updateFilterAvailability() {
     const search = !!searchInput.value.trim();
     document.getElementById('catalog-filter-fields').disabled = search;
     document.getElementById('catalog-filter-note').hidden = !search;
-    document.querySelectorAll('[data-tv-filter]').forEach(select => { select.disabled = !['tv','anime'].includes(currentFilter); });
-    filterForm.elements.originalLanguage.disabled = currentFilter === 'anime';
+    document.querySelectorAll('[data-tv-filter]').forEach(select => { select.disabled = !['tv','anime'].includes(context); });
+    filterForm.elements.originalLanguage.disabled = context === 'anime';
 }
 for (const id of ['filter-genre','filter-exclude']) {
     const select = document.getElementById(id);
@@ -323,8 +322,9 @@ function decorateCard(card){
     const planButton=card.querySelector('.cat-plan-toggle');if(planButton){const active=personalPlans.has(card.dataset.mediaKey);planButton.textContent=active?'✓':'♡';planButton.setAttribute('aria-pressed',String(active));planButton.setAttribute('aria-label',`${active?'Убрать из планов':'В планы'}: ${card.querySelector('.cat-title').textContent}`);}
     const rating=personalRatings.find(m=>mediaKey(m.tmdbId,m.mediaType)===card.dataset.mediaKey);
     const planned=personalPlans.has(card.dataset.mediaKey);
+    card.classList.toggle('personal-masterpiece',Number(rating?.score)===10);
     if(!rating&&!planned)return;
-    const badge=document.createElement('span');badge.className='library-badge';badge.textContent=rating?`✓ Твоя ${Number(rating.score).toFixed(1)}`:'♡ В планах';card.querySelector('.cat-poster-wrapper').append(badge);
+    const badge=document.createElement('span');badge.className='library-badge';badge.textContent=rating?(Number(rating.score)===10?'Шедевр · Твои 10 из 10':`✓ Твоя ${Number(rating.score).toFixed(1)}`):'♡ В планах';card.querySelector('.cat-poster-wrapper').append(badge);
 }
 function loadPersonalLibrary(uid){
     personalPromise=Promise.all([getPlans(uid),readAll('movies',uid)]).then(([plans,ratings])=>{if(auth.currentUser?.uid!==uid)return;personalPlans=new Set(plans.map(m=>mediaKey(m.tmdbId,m.mediaType)));personalRatings=ratings.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));personalReady=true;document.querySelectorAll('.catalog-card').forEach(decorateCard);}).catch(()=>{personalReady=false;});

@@ -1,3 +1,4 @@
+import { MASTERPIECE_BANNER } from './rating-style.js';
 import { db, collection, query, where, orderBy, limit, startAfter, getDocs } from './firebase-init.js';
 import { posterUrl } from './shared.js';
 
@@ -22,6 +23,8 @@ export function createProfileRatings() {
     function details(movie) {
         if (!allowed) return;
         element('rating-detail-title').textContent = movie.title;
+        dialog.classList.toggle('is-masterpiece',movie.score===10);
+        element('rating-detail-distinction').hidden=movie.score!==10;
         element('rating-detail-poster').src = posterUrl(movie.poster);
         element('rating-detail-score').textContent = movie.score === null ? '—' : movie.score.toFixed(1);
         element('rating-detail-date').textContent = typeof movie.date === 'string' ? movie.date : '';
@@ -50,10 +53,11 @@ export function createProfileRatings() {
             const image = document.createElement('img'); image.src = posterUrl(movie.poster); image.alt = ''; image.loading = 'lazy';
             const score = document.createElement('span'); score.className = 'profile-rating-score';
             score.textContent = movie.score === null ? '—' : movie.score.toFixed(1);
-            if (movie.score === 10) score.classList.add('is-perfect');
+            if (movie.score === 10) {score.classList.add('is-perfect');score.textContent='10.0 / 10';card.classList.add('masterpiece');}
             const title = document.createElement('span'); title.className = 'profile-rating-title'; title.textContent = movie.title;
             const genre = document.createElement('span'); genre.className = 'profile-rating-genre'; genre.textContent = typeof movie.genres === 'string' ? movie.genres.split(',')[0] : '';
-            frame.append(image, score); card.append(frame, title, genre);
+            frame.append(image, score);if(movie.score===10){const ribbon=document.createElement('span');ribbon.innerHTML=MASTERPIECE_BANNER;frame.append(ribbon.firstElementChild);}
+            card.append(frame, title, genre);
             card.addEventListener('click', () => details(movie)); grid.appendChild(card);
         }
         if (!movies.length && !busy) status.textContent = records.length ? 'По этим фильтрам пока ничего не найдено.' : 'Оценок пока нет.';

@@ -95,7 +95,7 @@ homeSearch.addEventListener('input', () => {
             if(request!==homeRequest)return;
             homeResults.replaceChildren();
             for(const movie of (data.results||[]).filter(item=>['movie','tv'].includes(item.media_type)).slice(0,5)) {
-                const link=document.createElement('a');link.role='option';link.href=`pages/rate.html?${new URLSearchParams({id:movie.id,type:movie.media_type,title:movie.title||movie.name})}`;
+                const link=document.createElement('a');link.role='option';link.addEventListener('keydown',event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();const next=event.key==='ArrowDown'?link.nextElementSibling:link.previousElementSibling;(next||homeSearch).focus();}if(event.key==='Escape'){homeResults.hidden=true;homeSearch.focus();}});link.href=`pages/rate.html?${new URLSearchParams({id:movie.id,type:movie.media_type,title:movie.title||movie.name})}`;
                 const image=document.createElement('img');image.src=posterUrl(`https://image.tmdb.org/t/p/w92${movie.poster_path}`);image.alt='';
                 const title=document.createElement('span');title.textContent=movie.title||movie.name;
                 const year=document.createElement('small');year.textContent=(movie.release_date||movie.first_air_date||'').slice(0,4);

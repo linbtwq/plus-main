@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta charset="UTF-8">
     <title>plus.plus | Хочу посмотреть</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body>
@@ -29,7 +29,7 @@
             <a href="rate.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></span> Оценить</a>
             <a href="list.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
             <a href="plans.html" class="side-link active">♡ Хочу посмотреть</a>
-            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Слот</a>
+            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Рулетка</a>
             <a href="profile.html" class="side-link"><span aria-hidden="true">◎</span> Профиль и друзья</a>
         </nav>
         <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
@@ -40,18 +40,18 @@
         <div class="plans-controls"><input id="plans-search" type="search" placeholder="Найти в планах" aria-label="Поиск по планам"><select id="plans-type" aria-label="Тип"><option value="">Все тайтлы</option><option value="movie">Фильмы</option><option value="tv">Сериалы и аниме</option></select><select id="plans-genre" aria-label="Жанр"><option value="">Все жанры</option></select><select id="plans-sort" aria-label="Сортировка"><option value="new">Сначала добавленные недавно</option><option value="title">По названию</option></select></div>
         <div class="section-topline"><p id="plans-status" role="status"></p><button id="plans-retry" class="text-button">Обновить</button></div>
         <div id="plans-grid" class="plans-grid" aria-busy="true"></div>
-        <a href="roulette.html" class="profile-small-btn">Выбрать из планов в рулетке ↗</a>
     </main>
 
     <nav class="bottom-dock">
         <a href="catalog.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-popcorn"/></svg></i><span>Каталог</span></a>
         <a href="rate.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></i><span>Оценка</span></a>
         <a href="plans.html" class="dock-btn active"><i><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></i><span>Планы</span></a>
-        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Слот</span></a>
+        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Рулетка</span></a>
     </nav>
 
     <!-- Навигация и список планов. -->
     <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/interface.js"></script>
     <script type="module" src="../assets/js/plans.js"></script>
 </body>
 </html>

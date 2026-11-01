@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>plus.plus | Слот выбора</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <title>plus.plus | Рулетка</title>
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body>
@@ -26,7 +26,7 @@
             <a href="rate.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></span> Оценить</a>
             <a href="list.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
             <a href="plans.html" class="side-link">♡ Хочу посмотреть</a>
-            <a href="roulette.html" class="side-link active"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Слот</a>
+            <a href="roulette.html" class="side-link active"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Рулетка</a>
             <a href="profile.html" class="side-link"><span aria-hidden="true">◎</span> Профиль и друзья</a>
         </nav>
         <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
@@ -61,7 +61,6 @@
             </div>
         </div>
         <aside class="roulette-tools">
-            <section class="roulette-tool-panel"><h2>Подобрать компанию фильмов</h2><label>Откуда выбрать<select id="roulette-pool-source"><option value="manual">Текущий список</option><option value="plans">Мои планы</option><option value="union">Мои планы и планы друзей</option><option value="intersection">Общее в наших планах</option></select></label><fieldset id="roulette-friends"><legend>Друзья для совместного выбора</legend><p>Загружаем список…</p></fieldset><label class="check-label"><input id="roulette-unwatched" type="checkbox"> Исключить уже оценённое участниками</label><label>Максимум минут<select id="roulette-max-runtime"><option value="">Без ограничения</option><option value="30">30 — серия</option><option value="90">90</option><option value="120">120</option><option value="150">150</option><option value="180">180</option></select></label><label>Жанр для подбора<select id="roulette-pool-genre"><option value="">Любой</option><option value="35">Комедия</option><option value="18">Драма</option><option value="53">Триллер</option><option value="878">Фантастика</option><option value="16">Анимация</option><option value="12">Приключения</option><option value="27">Ужасы</option></select></label><button id="roulette-prepare" type="button" class="btn-retro">Подготовить список</button><p id="roulette-pool-status" role="status"></p></section>
             <section class="roulette-tool-panel"><h2>Добавить из каталога</h2><p>Десять вариантов по жанру. Уже добавленные не повторяются.</p><label for="roulette-discover-genre">Жанр</label><select id="roulette-discover-genre"><option value="">Любой</option><option value="35">Комедия</option><option value="18">Драма</option><option value="53">Триллер</option><option value="878">Фантастика</option><option value="16">Мультфильм</option><option value="12">Приключения</option><option value="27">Ужасы</option></select><button id="roulette-discover" class="btn-retro" type="button">Добавить 10 фильмов</button></section>
             <section class="roulette-tool-panel"><h2>Мой список</h2><div class="roulette-file-actions"><button id="roulette-export" class="profile-small-btn" type="button">Скачать .txt</button><label class="profile-small-btn" for="roulette-import">Загрузить .txt</label><input id="roulette-import" type="file" accept=".txt,text/plain" class="profile-file-input"></div><button id="roulette-undo" class="text-button" type="button" hidden>Вернуть последний выбывший фильм</button><p id="roulette-status" role="status" aria-live="polite"></p></section>
             <section class="roulette-tool-panel"><div class="filter-panel-heading"><h2>Последние выборы</h2><button id="roulette-clear-history" class="text-button" type="button">Очистить</button></div><ol id="roulette-history"></ol></section>
@@ -72,7 +71,7 @@
         <a href="catalog.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-popcorn"/></svg></i><span>Каталог</span></a>
         <a href="rate.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></i><span>Оценка</span></a>
         <a href="list.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></i><span>Архив</span></a>
-        <a href="roulette.html" class="dock-btn active"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Слот</span></a>
+        <a href="roulette.html" class="dock-btn active"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Рулетка</span></a>
     </nav>
 
     <div id="result-modal" class="modal-overlay hidden">
@@ -86,6 +85,7 @@
         </div>
     </div>
     <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/interface.js"></script>
     <script type="module" src="../assets/js/roulette.js"></script>
 </body>
 </html>

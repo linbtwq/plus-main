@@ -1,6 +1,3 @@
-import { getPlans,readAll,mediaKey,assertFriend } from './library-store.js';
-import { getProfile } from './profile-store.js';
-import { db,collection,query,where,getDocs } from './firebase-init.js';
 import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 import { loadRoulette, saveRoulette } from './roulette-store.js';
 import { tmdb, posterUrl, NO_POSTER, readRoulette, writeRoulette, validId, watchUrl } from './shared.js';
@@ -24,7 +21,6 @@ onAuthStateChanged(auth, async user => {
     try { const saved=JSON.parse(localStorage.getItem(`rouletteHistory:${user.uid}`)||'[]'); history=Array.isArray(saved)?saved.filter(item=>typeof item==='string').slice(0,10):[]; } catch {history=[];}
     try {const saved=JSON.parse(localStorage.getItem(`rouletteSeen:${user.uid}`)||'null');seenTitles=new Set(Array.isArray(saved)?saved.filter(item=>typeof item==='string'):history);}catch{seenTitles=new Set(history);}
     renderRouletteHistory();
-    loadPoolFriends();
     try { textArea.value = await loadRoulette(user.uid); }
     catch { textArea.value = readRoulette(user.uid); alert('Не удалось загрузить облачный список. Показана локальная копия.'); }
     textArea.disabled = false;
@@ -121,7 +117,7 @@ spinBtn.onclick = async () => {
     const allMovies = [...new Set(textArea.value.split('\n').map(value => value.trim()).filter(Boolean))];
     const movies = currentMode === 'no-repeat' ? allMovies.filter(title=>!seenTitles.has(title)) : allMovies;
     if(currentMode==='no-repeat'&&!movies.length)return alert('Все фильмы уже выпадали. Очисти историю или пополни список.');
-    if (allMovies.length < 2) return alert('Добавь хотя бы два разных тайтла!');
+    if (!allMovies.length) return alert('Добавь хотя бы один тайтл или подготовь список из планов.');
     if (movies.length > 200) return alert('За один раз можно прокрутить до 200 тайтлов.');
     isSpinning = true;
     clearTimeout(poolPreviewTimer);poolPreviewVersion++;
@@ -247,39 +243,3 @@ function previewRoulettePool() {
         for(let i=0;i<3;i++){const index=i%titles.length;const item=makeItem(posters[index],titles[index]);item.classList.remove('blur-effect');reel.appendChild(item);}
     },350);
 }
-
-
-async function loadPoolFriends(){
-    const area=document.getElementById('roulette-friends');
-    try{
-        const snapshot=await getDocs(query(collection(db,'friendships'),where('members','array-contains',currentUser.uid)));
-        const ids=snapshot.docs.map(d=>d.data()).filter(d=>d.status==='accepted').map(d=>d.members.find(uid=>uid!==currentUser.uid));
-        const profiles=await Promise.all(ids.map(async uid=>({uid,profile:await getProfile(uid)})));area.replaceChildren();const legend=document.createElement('legend');legend.textContent='Друзья для совместного выбора';area.append(legend);
-        if(!profiles.length){const text=document.createElement('p');text.textContent='Добавь друзей в профиле для совместного выбора.';area.append(text);}
-        for(const {uid,profile} of profiles){const label=document.createElement('label');label.className='check-label';const box=document.createElement('input');box.type='checkbox';box.value=uid;label.append(box,document.createTextNode(profile?.displayName||'Друг'));area.append(label);}
-    }catch{area.textContent='Не удалось загрузить друзей. Обнови страницу, чтобы повторить.';}
-}
-document.getElementById('roulette-prepare').addEventListener('click',async event=>{
-    const button=event.currentTarget,status=document.getElementById('roulette-pool-status');
-    if(!currentUser||isSpinning)return;button.disabled=true;spinBtn.disabled=true;textArea.disabled=true;status.textContent='Проверяем планы, оценки и длительность…';
-    try{
-        const source=document.getElementById('roulette-pool-source').value,others=Array.from(document.querySelectorAll('#roulette-friends input:checked'),input=>input.value),participants=[currentUser.uid,...others];
-        if(['union','intersection'].includes(source)&&!others.length)throw new Error('Выбери хотя бы одного друга.');
-        await Promise.all(others.map(uid=>assertFriend(currentUser.uid,uid)));
-        let candidates=[];
-        if(source==='manual'){
-            for(const title of [...new Set(listItems())]){await getPoster(title);const media=movieCache.get(title);if(!media)throw new Error(`Не удалось найти «${title}». Уточни название.`);candidates.push({tmdbId:media.id,mediaType:media.mediaType,title});}
-        }else{
-            const lists=await Promise.all((source==='plans'?[currentUser.uid]:participants).map(uid=>getPlans(uid,currentUser.uid)));
-            const keys=lists.map(list=>new Set(list.map(m=>mediaKey(m.tmdbId,m.mediaType))));
-            const map=new Map(lists.flat().map(m=>[mediaKey(m.tmdbId,m.mediaType),m]));candidates=[...map.values()].filter(m=>source!=='intersection'||keys.every(set=>set.has(mediaKey(m.tmdbId,m.mediaType))));
-        }
-        if(candidates.length>200)throw new Error('В подборе больше 200 тайтлов. Сократи исходный список.');
-        if(document.getElementById('roulette-unwatched').checked){const rated=(await Promise.all(participants.map(uid=>readAll('movies',uid)))).flat(),seen=new Set(rated.map(m=>mediaKey(m.tmdbId,m.mediaType)).filter(Boolean)),legacy=new Set(rated.filter(m=>!mediaKey(m.tmdbId,m.mediaType)).map(m=>String(m.title).trim().toLocaleLowerCase()));candidates=candidates.filter(m=>!seen.has(mediaKey(m.tmdbId,m.mediaType))&&!legacy.has(m.title.trim().toLocaleLowerCase()));}
-        const max=Number(document.getElementById('roulette-max-runtime').value),genre=Number(document.getElementById('roulette-pool-genre').value);let missingRuntime=0;
-        if(max||genre){const filtered=[];for(const movie of candidates){const info=await tmdb(`${movie.mediaType}/${movie.tmdbId}`);const runtime=info.runtime||info.episode_run_time?.[0];if(max&&!runtime){missingRuntime++;continue;}if(max&&runtime>max||genre&&!info.genres?.some(g=>g.id===genre))continue;filtered.push(movie);}candidates=filtered;}
-        for(const m of candidates){movieCache.set(m.title,{id:m.tmdbId,mediaType:m.mediaType,title:m.title});if(m.poster)posterCache.set(m.title,posterUrl(m.poster));}
-        textArea.value=[...new Set(candidates.map(m=>m.title))].join('\n');saveList();status.textContent=`Готово: ${candidates.length} тайтлов.${missingRuntime?' Без известной длительности исключено: '+missingRuntime+'.':''}${candidates.length?'':' Попробуй смягчить условия.'}`;
-    }catch(error){status.textContent=error.message||'Не удалось подготовить список. Попробуй ещё раз.';}
-    finally{button.disabled=false;spinBtn.disabled=false;textArea.disabled=false;}
-});

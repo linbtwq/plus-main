@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>plus.plus | Профиль и друзья</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" href="../assets/img/favicon.png">
 </head>
 <body class="profile-body">
@@ -81,7 +81,7 @@
         </section>
         <dialog id="rating-detail-dialog" class="profile-dialog rating-detail-dialog" aria-labelledby="rating-detail-title">
             <button type="button" class="profile-dialog-close" data-close-dialog aria-label="Закрыть оценку">×</button>
-            <div class="rating-detail-header"><img id="rating-detail-poster" alt=""><div><p class="profile-eyebrow">ВПЕЧАТЛЕНИЯ О КИНО</p><h2 id="rating-detail-title"></h2><p id="rating-detail-genres"></p><p><strong id="rating-detail-score"></strong> <span>из 10</span></p><p id="rating-detail-date"></p></div></div>
+            <div class="rating-detail-header"><img id="rating-detail-poster" alt=""><div><p class="profile-eyebrow">ВПЕЧАТЛЕНИЯ О КИНО</p><span id="rating-detail-distinction" class="masterpiece-detail-label" hidden>Шедевр · 10 из 10</span><h2 id="rating-detail-title"></h2><p id="rating-detail-genres"></p><p><strong id="rating-detail-score"></strong> <span>из 10</span></p><p id="rating-detail-date"></p></div></div>
             <dl id="rating-detail-stats"></dl><h3>Отзыв</h3><p id="rating-detail-review"></p>
         </dialog>
         <dialog id="edit-profile-dialog" class="profile-dialog" aria-labelledby="edit-heading">
@@ -125,6 +125,7 @@
         <dialog id="compare-dialog" class="profile-dialog comparison-dialog"><div class="section-topline"><h2>Ваши оценки</h2><button id="compare-close" data-close-dialog class="profile-small-btn" type="button" aria-label="Закрыть сравнение">✕</button></div><p id="compare-metrics" class="comparison-metrics"></p><div class="plans-controls"><input id="compare-search" type="search" placeholder="Найти общий фильм" aria-label="Поиск общих фильмов"><select id="compare-sort" aria-label="Сортировка сравнения"><option value="similar">Ближе всего по оценке</option><option value="difference">Самые разные впечатления</option><option value="together">Обоим понравилось</option></select></div><p id="compare-status" role="status"></p><div id="compare-results"></div></dialog>
     </main>
     <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/interface.js"></script>
     <script type="module" src="../assets/js/profile.js"></script>
 </body>
 </html>

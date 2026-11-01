@@ -1,3 +1,4 @@
+import { MASTERPIECE_BANNER } from './rating-style.js';
 import { getProfile, safeAvatar } from './profile-store.js';
 import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, deleteDoc, doc, signOut, limit, where, startAfter } from './firebase-init.js';
 import { escapeHtml, posterUrl, resolveMedia, watchUrl, trailerUrl } from './shared.js';
@@ -102,12 +103,14 @@ function render(movies) {
         card.innerHTML = `
             <div class="card-frame">
                 ${m.poster ? `<img src="${escapeHtml(posterUrl(m.poster))}" class="card-cover" loading="lazy">` : `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">НЕТ ФОТО</div>`}
-                <div class="card-score-pill ${colorClass}">${Number(m.score).toFixed(1)}</div>
+                <div class="card-score-pill ${colorClass}">${Number(m.score).toFixed(1)}${Number(m.score)===10?'<small class="maximum-score-scale">/10</small>':''}</div>
+                ${Number(m.score)===10?MASTERPIECE_BANNER:''}
                 ${isOwner ? `<button class="card-del-btn" >✕</button>` : ''}
             </div>
-            <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div><div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div><p class="archive-list-review">${escapeHtml(m.review||'Без отзыва')}</p><span class="archive-list-date">${escapeHtml(m.date||'')}</span></div>
+            <div class="card-caption"><div class="card-headline">${escapeHtml(m.title)}${m.isDuo?' 💕':''}</div>${Number(m.score)===10?'<span class="masterpiece-list-label">Шедевр · 10 из 10</span>':''}<div class="card-sub"><span>${escapeHtml(m.genres ? m.genres.split(',')[0] : 'КИНО')}</span><span>${escapeHtml(m.authorName)}</span></div><p class="archive-list-review">${escapeHtml(m.review||'Без отзыва')}</p><span class="archive-list-date">${escapeHtml(m.date||'')}</span></div>
         `;
         
+        card.querySelector('.card-del-btn')?.setAttribute('aria-label',`Удалить оценку: ${m.title}`);
         card.querySelector('.card-del-btn')?.addEventListener('click', event => { event.stopPropagation(); removeMovie(m.id); });
         const frame = card.querySelector('.card-frame');
         let rect = null;
@@ -118,13 +121,14 @@ function render(movies) {
         });
 
         card.addEventListener('mousemove', (e) => {
+            if(!matchMedia('(hover: hover) and (pointer: fine)').matches||matchMedia('(prefers-reduced-motion: reduce)').matches||card.closest('.archive-list'))return;
             if (!frame || !rect) return;
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
             if (rafId) cancelAnimationFrame(rafId);
             rafId = requestAnimationFrame(() => {
-                frame.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -10}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 10}deg) scale3d(1.02, 1.02, 1.02)`;
+                frame.style.transform = `perspective(1000px) rotateX(${((y - rect.height/2)/(rect.height/2)) * -2}deg) rotateY(${((x - rect.width/2)/(rect.width/2)) * 2}deg) scale3d(1.01, 1.01, 1.01)`;
                 frame.style.setProperty('--mouse-x', `${(x / rect.width) * 100}%`); 
                 frame.style.setProperty('--mouse-y', `${(y / rect.height) * 100}%`);
             });
@@ -136,7 +140,7 @@ function render(movies) {
             if (frame) frame.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`; 
         });
         
-        card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',`Открыть оценку: ${m.title}`);card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openArchiveModal(m);}});
+        card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',`Открыть оценку: ${m.title}${Number(m.score)===10?", шедевр, максимальная оценка 10 из 10":""}`);card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openArchiveModal(m);}});
         card.addEventListener('click', () => openArchiveModal(m));
         grid.appendChild(card);
     });
@@ -149,6 +153,8 @@ function openArchiveModal(m) {
     document.getElementById('am-edit-btn').href=`rate.html?${new URLSearchParams({edit:m.id})}`;
     document.getElementById('am-poster').src = posterUrl(m.poster);
     document.getElementById('am-title').textContent = m.title;
+    modal.querySelector('.archive-detail-box').classList.toggle('is-masterpiece',Number(m.score)===10);
+    document.getElementById('am-distinction').hidden=Number(m.score)!==10;
     document.getElementById('am-participants').textContent=m.isDuo?'Совместная оценка':'Личная оценка';
     document.getElementById('am-duo-legend').hidden=!m.isDuo||m.ratingMode==='quick';
     document.getElementById('am-genres').textContent = m.genres || 'Жанр неизвестен';
@@ -252,11 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('live-search')?.addEventListener('input', applyFiltersAndSort);
     const dropdown = document.getElementById('custom-sort'), selected = document.getElementById('dropdown-selected');
     if (dropdown && selected) {
-        selected.addEventListener('click', () => dropdown.classList.toggle('open'));
-        document.addEventListener('click', e => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
+        const setSortOpen=open=>{dropdown.classList.toggle('open',open);selected.setAttribute('aria-expanded',String(open));};
+        selected.addEventListener('click', () => setSortOpen(!dropdown.classList.contains('open')));
+        selected.addEventListener('keydown',event=>{if(event.key==='ArrowDown'){event.preventDefault();setSortOpen(true);dropdown.querySelector('.sort-opt.active')?.focus();}});
+        const options=Array.from(dropdown.querySelectorAll('.sort-opt'));
+        options.forEach((option,index)=>{option.tabIndex=0;option.setAttribute('role','button');option.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();option.click();}if(event.key==='Escape'){setSortOpen(false);selected.focus();}if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();options[(index+(event.key==='ArrowDown'?1:options.length-1))%options.length].focus();}});});
+        document.addEventListener('click', e => { if (!dropdown.contains(e.target)) setSortOpen(false); });
         document.querySelectorAll('#dropdown-options .sort-opt').forEach(opt => opt.addEventListener('click', () => {
             document.querySelectorAll('#dropdown-options .sort-opt').forEach(o => o.classList.remove('active')); opt.classList.add('active');
-            selected.innerHTML = `${escapeHtml(opt.innerText)} <span>▼</span>`; dropdown.classList.remove('open'); applyFiltersAndSort();
+            selected.innerHTML = `${escapeHtml(opt.innerText)} <span>▼</span>`; setSortOpen(false); selected.focus();applyFiltersAndSort();
         }));
     }
     document.querySelectorAll('.type-btn').forEach(btn => btn.addEventListener('click', (e) => { document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); applyFiltersAndSort(); }));

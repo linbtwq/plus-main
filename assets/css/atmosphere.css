@@ -1,0 +1,98 @@
+/* Оформление сохраняет существующую композицию: меняются свет, фактуры и движение. */
+:root {
+    --ambient-sage:#9cb9a3;
+    --ambient-teal:#79aca9;
+    --ambient-blue:#8ba8bc;
+    --ambient-gold:#d2bb83;
+    --ambient-edge:rgba(142,184,169,.22);
+    --ambient-shadow:0 14px 40px rgba(2,12,16,.22);
+    --ease-soft:cubic-bezier(.2,.7,.25,1);
+}
+body { background:#0c191d;background-attachment:fixed; }
+body::before {
+    display:block;content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:1;animation:none;transform:none;will-change:auto;
+    background:linear-gradient(180deg,rgba(9,25,27,.83),rgba(10,25,29,.93) 65%,#0b191df5),url('../img/atmosphere/misty-pines.webp') center 35%/cover no-repeat;
+}
+body::after {
+    display:block;content:'';position:fixed;inset:-8%;z-index:-1;pointer-events:none;mix-blend-mode:normal;opacity:.7;
+    background:radial-gradient(ellipse at 7% 20%,rgba(77,119,85,.23),transparent 42%),radial-gradient(ellipse at 90% 62%,rgba(61,94,126,.24),transparent 44%),radial-gradient(ellipse at 52% 0%,rgba(82,132,125,.1),transparent 50%);
+    animation:forest-breath 34s ease-in-out infinite alternate;
+}
+@keyframes forest-breath { from{transform:translate3d(-1%,-1%,0)} to{transform:translate3d(1.5%,1%,0)} }
+
+/* Светлый верхний край и глубокие тени делают поверхности объёмнее. */
+:where(.home-review-hero,.home-shortcuts>a,.panel,.control-deck,.catalog-filter-panel,.metric-card,.roulette-tool-panel,.slot-machine,.profile-hero,.friend-row,.continue-card,.profile-dialog,.login-layout) {
+    background-image:linear-gradient(145deg,rgba(148,188,161,.065),transparent 35%,rgba(53,79,109,.11));
+    border-color:var(--ambient-edge);
+    box-shadow:inset 0 1px 0 rgba(194,220,203,.055),var(--ambient-shadow);
+}
+.top-deck,.bottom-dock { background:rgba(12,28,33,.87);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(132,174,161,.18);box-shadow:0 8px 30px rgba(1,10,14,.14),inset 0 1px rgba(189,216,201,.035); }
+.home-bar { border-bottom-color:rgba(139,179,165,.18); }
+.home-welcome h1,.catalog-header h1,.rate-page-heading h1,.roulette-heading h1 { color:#d1dfd2;-webkit-text-fill-color:#d1dfd2;text-shadow:0 3px 25px rgba(144,186,162,.06); }
+.home-review-hero { background:radial-gradient(ellipse at 0% 0%,rgba(103,145,103,.13),transparent 64%),linear-gradient(120deg,#233d32,#1b303a);border-color:#496657;box-shadow:inset 0 1px rgba(189,215,189,.09),0 20px 50px rgba(1,12,16,.22); }
+.home-task-icon { background:linear-gradient(145deg,#415e42,#2e4e40);box-shadow:inset 0 1px rgba(206,221,185,.14),0 5px 15px #0a201d44; }
+.home-shortcuts>a:nth-child(1) { background:linear-gradient(135deg,#243e2f,#19332e); }
+.home-shortcuts>a:nth-child(2) { background:linear-gradient(135deg,#29414b,#20323d); }
+.home-shortcuts>a:nth-child(3) { background:linear-gradient(135deg,#304542,#233a39); }
+.home-shortcuts>a:nth-child(4) { background:linear-gradient(135deg,#344048,#23313c); }
+.catalog-filter-panel { background:linear-gradient(160deg,#243b30,#192f30 65%,#1b2d36); }
+.rate-wrapper .left-panel { background:linear-gradient(145deg,#273f31,#1b302a);border-color:#45614b; }
+.rate-wrapper .rating-editor { background:linear-gradient(145deg,#273d45,#1c3038 65%,#203734);border-color:#435f65; }
+.rate-wrapper .final-score-box { background:radial-gradient(ellipse at 0% 0%,#78976c1c,transparent 70%),linear-gradient(125deg,#2d4435,#203943);box-shadow:inset 0 1px #c5d3b414,0 12px 35px #05151644; }
+.roulette-tool-panel:nth-child(even) { background:linear-gradient(140deg,#30434a,#21343e); }
+.slot-machine { background:radial-gradient(ellipse at 50% 0%,#90acac09,transparent 65%),linear-gradient(145deg,#213741,#192c35); }
+.profile-cover:not(.has-custom-banner) { background:linear-gradient(120deg,#16352b66,#1c374e99),url('../img/atmosphere/misty-pines.webp') center 55%/cover; }
+.profile-dialog { background:linear-gradient(145deg,#213b37,#1c303c); }
+.detail-box { background:linear-gradient(135deg,#203b30f5,#223642f7); }
+#archive-modal .archive-detail-box { background:linear-gradient(145deg,#253e34,#1c313c); }
+.archive-review-section { background:linear-gradient(145deg,#173135,#172c35); }
+.login-form-panel { background:radial-gradient(ellipse at 100% 0%,#7c9fa312,transparent 65%),linear-gradient(150deg,#263e43,#192e36); }
+.login-story::after { background:linear-gradient(180deg,#102b29dc,#173b2c66 45%,#10282be8); }
+.login-layout { border-color:#506b62;box-shadow:0 30px 90px #010e143f,inset 0 1px #c3dac714; }
+
+/* Кнопки имеют мягкий блик, но не меняют размеры соседних элементов. */
+.btn-retro,.profile-primary { transition:transform 180ms var(--ease-soft),background-color 220ms,border-color 220ms,box-shadow 220ms;color:#dce7dd;box-shadow:inset 0 1px rgba(210,230,214,.12),0 5px 16px #071a1b30; }
+.btn-retro:not(.pine):not(.gold),.profile-primary { background-image:linear-gradient(150deg,#b9d4ba13,transparent 60%,#0c26351a); }
+.btn-retro:hover,.profile-primary:hover { transform:translateY(-2px);box-shadow:inset 0 1px #dcebdd22,0 8px 22px #0b252e55,0 0 16px #83ae9a0c; }
+.btn-retro:active,.profile-primary:active,.profile-small-btn:active,.cat-plan-toggle:active { transform:translateY(1px) scale(.985); }
+.btn-retro:disabled,.profile-primary:disabled { transform:none; }
+.profile-small-btn,.cat-filter-btn,.rail-chip,.cat-plan-toggle,.menu-trigger { transition:background-color 200ms,border-color 200ms,box-shadow 200ms,transform 180ms var(--ease-soft); }
+.profile-small-btn:hover,.rail-chip:hover,.cat-filter-btn:hover { border-color:#739385;box-shadow:inset 0 1px #c4decb0d,0 0 15px #82b29b0b; }
+input:not([type='range']):not([type='checkbox']):focus,textarea:focus,select:focus { outline:2px solid #8eb8a655;outline-offset:2px; }
+.cat-plan-toggle[aria-pressed='true'] { background:linear-gradient(145deg,#58754f,#355b49);border-color:#a0b88e;color:#e0e9d2; }
+.cat-plan-toggle.is-celebrating { animation:heart-settle 460ms var(--ease-soft); }
+@keyframes heart-settle { 0%{transform:scale(.85)} 45%{transform:scale(1.15);box-shadow:0 0 0 7px #a6c19b18} 100%{transform:scale(1)} }
+
+/* Движение постеров спокойнее прежнего сильного наклона. */
+.movie-card,.catalog-card,.profile-rating-card,.collection-card { transition:transform 350ms var(--ease-soft),box-shadow 350ms var(--ease-soft); }
+.movie-card:hover,.catalog-card:hover { transform:translateY(-4px); }
+.card-cover,.cat-poster,.profile-rating-frame>img,.collection-card>img,.home-cover-art>img { transition:transform 650ms var(--ease-soft),filter 650ms var(--ease-soft); }
+@media(hover:hover) and (pointer:fine){
+    .movie-card:hover .card-cover,.catalog-card:hover .cat-poster,.profile-rating-card:hover .profile-rating-frame>img { transform:scale(1.035); }
+    .collection-card:hover>img { transform:scale(1.045); }
+    .home-cover-art:hover>img { transform:scale(1.025);filter:saturate(.65) brightness(.72); }
+}
+.card-frame,.cat-poster-wrapper,.profile-rating-frame { box-shadow:0 7px 22px #020c1266; }
+.card-frame::after { background:radial-gradient(circle at var(--mouse-x,50%) var(--mouse-y,40%),rgba(180,212,188,.1),transparent 65%);mix-blend-mode:screen; }
+.movie-card.masterpiece .card-frame { box-shadow:0 0 0 3px #ae955519,0 12px 30px #050e1099,0 0 26px #b69d5b20; }
+.masterpiece-banner { background:linear-gradient(120deg,#343b27f5,#243a30f2);box-shadow:inset 0 1px #e2d2a114,0 5px 16px #030e0d66; }
+
+/* Окна появляются коротко; повседневный фон движется почти незаметно. */
+.modal-overlay:not(.hidden) .modal-box,.modal-overlay:not(.hidden) .detail-box,.modal-overlay:not(.hidden) .trailer-box,.profile-dialog[open] { animation:ambient-open 260ms var(--ease-soft) both; }
+@keyframes ambient-open { from{opacity:0;transform:translateY(10px) scale(.985)} to{opacity:1;transform:translateY(0) scale(1)} }
+.score-ring.is-maximum { animation:maximum-light 850ms ease-out; }
+@keyframes maximum-light { 0%{filter:drop-shadow(0 0 0 #cab47d00)} 45%{filter:drop-shadow(0 0 13px #cab47d55)} 100%{filter:drop-shadow(0 0 0 #cab47d00)} }
+.toast { background:linear-gradient(125deg,#3d6552,#2c5354);border-color:#749785;box-shadow:inset 0 1px #c5decb1c,0 10px 30px #051a1f66; }
+
+/* На телефоне используется облегчённое изображение и меньше фоновых эффектов. */
+@media(max-width:768px){
+    body::before { background-image:linear-gradient(180deg,#0b2024d9,#0b1b20f2 70%),url('../img/atmosphere/misty-pines-mobile.webp');background-position:center,35% top; }
+    body::after { opacity:.5;animation:none;inset:0; }
+    .profile-cover:not(.has-custom-banner) { background-image:linear-gradient(120deg,#16352b66,#1c374e99),url('../img/atmosphere/misty-pines-mobile.webp'); }
+    .top-deck,.bottom-dock { backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px); }
+}
+@media(prefers-reduced-motion:reduce){
+    body::after,.cat-plan-toggle.is-celebrating,.score-ring.is-maximum,.modal-overlay:not(.hidden) .modal-box,.modal-overlay:not(.hidden) .detail-box,.modal-overlay:not(.hidden) .trailer-box,.profile-dialog[open] { animation:none !important; }
+    .movie-card,.catalog-card,.profile-rating-card,.collection-card,.btn-retro,.profile-primary,.profile-small-btn,.cat-plan-toggle,.card-cover,.cat-poster,.home-cover-art>img,.profile-rating-frame>img { transition:none !important; }
+    .movie-card:hover,.catalog-card:hover,.btn-retro:hover,.profile-primary:hover,.collection-card:hover>img,.home-cover-art:hover>img,.movie-card:hover .card-cover,.catalog-card:hover .cat-poster,.profile-rating-card:hover .profile-rating-frame>img { transform:none; }
+}

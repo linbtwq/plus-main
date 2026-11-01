@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>plus.plus | Каталог</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body>
@@ -28,7 +28,7 @@
             <a href="rate.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></span> Оценить</a>
             <a href="list.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
             <a href="plans.html" class="side-link">♡ Хочу посмотреть</a>
-            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Слот</a>
+            <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Рулетка</a>
             <a href="profile.html" class="side-link"><span aria-hidden="true">◎</span> Профиль и друзья</a>
         </nav>
         <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
@@ -52,8 +52,6 @@
                 <label>Жанр<select name="genre" id="filter-genre"><option value="">Любой</option></select></label>
                 <label>Не показывать жанр<select name="exclude" id="filter-exclude"><option value="">Не исключать</option></select></label>
                 <div class="filter-pair"><label>Год от<input name="yearFrom" type="number" min="1870" max="2100" placeholder="1990"></label><label>До<input name="yearTo" type="number" min="1870" max="2100" placeholder="2026"></label></div>
-                <div class="filter-pair"><label>Рейтинг от<input name="ratingMin" type="number" min="0" max="10" step="0.1" placeholder="0"></label><label>До<input name="ratingMax" type="number" min="0" max="10" step="0.1" placeholder="10"></label></div>
-                <label>Минимум голосов<select name="votes"><option value="">Любое количество</option><option value="100">100</option><option value="500">500</option><option value="1000">1 000</option><option value="5000">5 000</option><option value="10000">10 000</option></select></label>
                 <details class="filter-more"><summary>Ещё фильтры</summary>
                 <div class="filter-pair"><label>Минут от<input name="runtimeMin" type="number" min="0" max="1000" placeholder="0"></label><label>До<input name="runtimeMax" type="number" min="0" max="1000" placeholder="180"></label></div>
                 <label>Язык оригинала<select name="originalLanguage"><option value="">Любой</option><option value="en">Английский</option><option value="ru">Русский</option><option value="uk">Украинский</option><option value="ja">Японский</option><option value="ko">Корейский</option><option value="fr">Французский</option><option value="de">Немецкий</option><option value="es">Испанский</option><option value="it">Итальянский</option><option value="zh">Китайский</option><option value="hi">Хинди</option></select></label>
@@ -64,7 +62,7 @@
                 <label>Телеканал / сеть<select name="network" data-tv-filter><option value="">Любая</option><option value="213">Netflix</option><option value="49">HBO</option><option value="174">AMC</option><option value="2552">Apple TV+</option><option value="2739">Disney+</option><option value="1024">Amazon</option></select></label>
                 <label class="check-label"><input name="released" type="checkbox"> Только вышедшие</label>
                 </details>
-                <label>Сортировка<select name="sort"><option value="popularity.desc">Популярные</option><option value="vote_average.desc">Высокий рейтинг</option><option value="vote_average.asc">Низкий рейтинг</option><option value="vote_count.desc">Больше оценок</option><option value="primary_release_date.desc">Новые</option><option value="primary_release_date.asc">Старые</option></select></label>
+                <label>Сортировка<select name="sort"><option value="popularity.desc">Популярные</option><option value="primary_release_date.desc">Новые</option><option value="primary_release_date.asc">Старые</option></select></label>
                 <button type="submit" class="btn-retro">Показать</button>
             </fieldset></form>
         </aside>
@@ -80,7 +78,7 @@
         <a href="catalog.html" class="dock-btn active"><i><svg class="ic" aria-hidden="true"><use href="#i-popcorn"/></svg></i><span>Каталог</span></a>
         <a href="rate.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-message-square-heart"/></svg></i><span>Оценка</span></a>
         <a href="list.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></i><span>Архив</span></a>
-        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Слот</span></a>
+        <a href="roulette.html" class="dock-btn"><i><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></i><span>Рулетка</span></a>
     </nav>
 
     <div id="detail-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="detail-title">
@@ -92,7 +90,6 @@
                 <div class="detail-info">
                     <h2 id="detail-title" class="detail-title">Название</h2>
                     <div class="detail-meta">
-                        <span id="detail-rating" class="detail-rating"><svg class="ic ic-fill" aria-hidden="true"><use href="#i-star"/></svg> 8.5</span>
                         <span id="detail-year" class="detail-year">2024</span>
                         <span id="detail-runtime" class="detail-runtime">120 мин</span>
                     </div>
@@ -118,6 +115,7 @@
     </div>
     <div id="toast" class="toast hidden">Добавлено!</div>
     <script src="../assets/js/burger.js"></script>
+    <script type="module" src="../assets/js/interface.js"></script>
     <script type="module" src="../assets/js/catalog.js"></script>
 </body>
 </html>

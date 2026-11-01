@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>plus.plus | Твоё кино</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261101-atmosphere">
     <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <style>[hidden]{display:none!important}</style>
 </head>
@@ -31,7 +31,6 @@
             <div class="home-user">
                 <img id="user-avatar" class="user-avatar" referrerpolicy="no-referrer" alt="">
                 <a href="pages/profile.html" id="user-name" class="home-user-name" title="Открыть профиль">Пользователь</a>
-                <a href="pages/profile.html" class="home-profile-link">Профиль</a>
                 <button id="logout-btn" class="btn-logout" type="button" aria-label="Выйти" title="Выйти"><svg class="ic" aria-hidden="true"><use href="#i-log-out"/></svg><span>Выйти</span></button>
             </div>
         </header>
@@ -51,7 +50,7 @@
                 <a href="pages/list.html"><span class="shortcut-symbol"><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span><div><h2>Мои оценки</h2><p>Просмотренное и отзывы</p></div><span>↗</span></a>
                 <a href="pages/plans.html"><span class="shortcut-symbol">♡</span><div><h2>Хочу посмотреть</h2><p>Сохранённые планы</p></div><span>↗</span></a>
                 <a href="pages/catalog.html"><span class="shortcut-symbol"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span><div><h2>Каталог</h2><p>Поиск и подбор по фильтрам</p></div><span>↗</span></a>
-                <a href="pages/roulette.html"><span class="shortcut-symbol"><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span><div><h2>Рулетка</h2><p>Случайный выбор из планов</p></div><span>↗</span></a>
+                <a href="pages/roulette.html"><span class="shortcut-symbol"><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span><div><h2>Рулетка</h2><p>Выбор из твоего списка</p></div><span>↗</span></a>
             </section>
             <section class="home-collections"><div class="home-section-heading"><h2>Что посмотреть</h2><a href="pages/catalog.html">Весь каталог ↗</a></div>
                 <div class="collection-grid">
@@ -71,6 +70,7 @@
             <iframe id="trailer-iframe" width="100%" height="100%" src="" frameborder="0" allowfullscreen></iframe>
         </div>
     </div>
+    <script type="module" src="assets/js/interface.js"></script>
     <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>
