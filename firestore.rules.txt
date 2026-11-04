@@ -289,6 +289,39 @@ service cloud.firestore {
           : (request.resource.data.userId == request.auth.uid && request.resource.data.snapshot.userId == request.auth.uid))
         && request.resource.data.createdAt == request.time;
     }
+    // Награды постоянны; опыт и названия определяются каталогом, а не полями документа.
+    match /achievements/{id} {
+      allow get: if request.auth != null && id.matches(request.auth.uid + ':[a-z0-9-]{1,80}');
+      allow read: if request.auth != null && (owner(resource.data) || confirmedFriend(resource.data.userId));
+      allow create: if owner(request.resource.data)
+        && request.resource.data.keys().hasAll(['userId','achievementId','unlockedAt'])
+        && request.resource.data.keys().hasOnly(['userId','achievementId','unlockedAt'])
+        && request.resource.data.achievementId in ['archive-1', 'archive-2', 'archive-3', 'archive-4', 'archive-5', 'archive-6', 'archive-7', 'archive-8', 'archive-9', 'reviews-1', 'reviews-2', 'reviews-3', 'reviews-4', 'reviews-5', 'reviews-6', 'essays-1', 'essays-2', 'essays-3', 'essays-4', 'masterpieces-1', 'masterpieces-2', 'masterpieces-3', 'masterpieces-4', 'masterpieces-5', 'revisions-1', 'revisions-2', 'revisions-3', 'variety-1', 'variety-2', 'variety-3', 'variety-4', 'variety-5', 'drama-1', 'drama-2', 'drama-3', 'comedy-1', 'comedy-2', 'comedy-3', 'thriller-1', 'thriller-2', 'thriller-3', 'horror-1', 'horror-2', 'horror-3', 'scifi-1', 'scifi-2', 'scifi-3', 'fantasy-1', 'fantasy-2', 'fantasy-3', 'animation-1', 'animation-2', 'animation-3', 'detective-1', 'detective-2', 'detective-3', 'adventure-1', 'adventure-2', 'adventure-3', 'action-1', 'action-2', 'action-3', 'romance-1', 'romance-2', 'romance-3', 'documentary-1', 'documentary-2', 'documentary-3', 'movies-1', 'movies-2', 'movies-3', 'series-1', 'series-2', 'series-3', 'anime-1', 'anime-2', 'anime-3', 'countries-1', 'countries-2', 'countries-3', 'countries-4', 'countries-5', 'decades-1', 'decades-2', 'decades-3', 'decades-4', 'classics-1', 'classics-2', 'classics-3', 'modern-1', 'modern-2', 'modern-3', 'director-1', 'director-2', 'director-3', 'actor-1', 'actor-2', 'actor-3', 'friends-1', 'friends-2', 'friends-3', 'friends-4', 'duo-1', 'duo-2', 'duo-3', 'duo-4', 'confirmed-1', 'confirmed-2', 'confirmed-3', 'days-1', 'days-2', 'days-3', 'days-4', 'days-5', 'streak-1', 'streak-2', 'streak-3', 'streak-4', 'roulette-1', 'roulette-2', 'roulette-3', 'roulette-4', 'plans-1', 'plans-2', 'plans-3', 'plans-4', 'plans-5', 'completed-1', 'completed-2', 'completed-3', 'completed-4', 'completed-5', 'hours-1', 'hours-2', 'hours-3', 'hours-4', 'rewatches-1', 'rewatches-2', 'rewatches-3', 'secret-profile', 'secret-duo', 'secret-sevens']
+        && id == request.auth.uid + ':' + request.resource.data.achievementId
+        && request.resource.data.unlockedAt == request.time;
+    }
+    // Прогресс — личный кэш. Постоянные награды и их даты защищены отдельными документами.
+    match /achievementProgress/{uid} {
+      function validProgress(d) {
+        return d.keys().hasAll(['userId','metrics','updatedAt']) && d.keys().hasOnly(['userId','metrics','updatedAt'])
+          && d.userId == uid && d.metrics is map && d.metrics.keys().hasOnly(['activeDays', 'actor', 'anime', 'classics', 'completed', 'confirmedDuo', 'countries', 'decades', 'director', 'duo', 'essays', 'friends', 'fullProfile', 'genre_action', 'genre_adventure', 'genre_animation', 'genre_comedy', 'genre_detective', 'genre_documentary', 'genre_drama', 'genre_fantasy', 'genre_horror', 'genre_romance', 'genre_scifi', 'genre_thriller', 'genres', 'hours', 'masterpieces', 'modern', 'movies', 'perfectDuo', 'plans', 'rated', 'reviews', 'revisions', 'rewatches', 'roulette', 'series', 'sevens', 'streak'])
+          && d.metrics.size() <= 40 && d.updatedAt == request.time;
+      }
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid && validProgress(request.resource.data);
+    }
+    match /achievementCabinets/{uid} {
+      function earned(id) { return id is string && exists(/databases/$(database)/documents/achievements/$(uid + ':' + id)); }
+      allow get: if request.auth != null && (request.auth.uid == uid || confirmedFriend(uid));
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['userId','badges','updatedAt']) && request.resource.data.keys().hasOnly(['userId','badges','updatedAt'])
+        && request.resource.data.userId == uid && request.resource.data.badges is list
+        && request.resource.data.badges.size() <= 3 && request.resource.data.badges.toSet().size() == request.resource.data.badges.size()
+        && (request.resource.data.badges.size() < 1 || earned(request.resource.data.badges[0]))
+        && (request.resource.data.badges.size() < 2 || earned(request.resource.data.badges[1]))
+        && (request.resource.data.badges.size() < 3 || earned(request.resource.data.badges[2]))
+        && request.resource.data.updatedAt == request.time;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

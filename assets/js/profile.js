@@ -1,3 +1,4 @@
+import { createProfileAchievements } from './profile-achievements.js';
 import { createJointInbox } from './joint-rating-inbox.js';
 import { createComparison } from './compare.js';
 import { createProfileRatings } from './profile-ratings.js';
@@ -8,6 +9,7 @@ import { validUserId, safeAvatar, ensureProfile, getProfile, saveProfile, watchF
 const element = id => document.getElementById(id);
 const status = element('profile-status');
 const ratings = createProfileRatings();
+const trophies=createProfileAchievements();
 const jointInbox=createJointInbox();
 let currentUser, targetProfile, relationships = [], unsubscribe, generation = 0, searchGeneration = 0, searchProfile = null, friendsReady = false;
 const people = new Map();
@@ -62,6 +64,7 @@ function relationshipWith(uid) { return relationships.find(item => item.members.
 function refreshFriendAction() {
     if (targetProfile && currentUser) {
         const own = targetProfile.uid === currentUser.uid;
+        trophies.setAccess(targetProfile.uid,own||friendsReady&&relationshipWith(targetProfile.uid)?.status==='accepted',own);
         comparison.setAccess(currentUser.uid,targetProfile.uid,!own&&friendsReady&&relationshipWith(targetProfile.uid)?.status==='accepted');
         ratings.setAccess(own ? '' : targetProfile.uid, !own && friendsReady && relationshipWith(targetProfile.uid)?.status === 'accepted', !own && !friendsReady);
     }
@@ -182,6 +185,7 @@ element('retry-friends').addEventListener('click', listenFriends);
 async function initialize(user) {
     const session = ++generation;
     jointInbox.setUser(user,false);
+    trophies.setAccess('',false);
     comparison.setAccess('','',false);
     ratings.setAccess('', false);
     unsubscribe?.(); unsubscribe = null; friendsReady = false; relationships = []; people.clear(); searchProfile = null;
@@ -203,7 +207,7 @@ async function initialize(user) {
     }
 }
 onAuthStateChanged(auth, user => {
-    if (!user) { ratings.setAccess('', false); generation++; unsubscribe?.(); window.location.href = '../index.html'; return; }
+    if (!user) { trophies.setAccess('',false);ratings.setAccess('', false); generation++; unsubscribe?.(); window.location.href = '../index.html'; return; }
     currentUser = user; initialize(user);
 });
 window.addEventListener('pagehide', () => {jointInbox.setUser(null,false); comparison.setAccess('','',false);ratings.setAccess('', false); unsubscribe?.(); unsubscribe = null; friendsReady = false; });

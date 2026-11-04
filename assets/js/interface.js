@@ -1,3 +1,4 @@
+import './achievement-notifications.js';
 // Общая клавиатурная навигация для всплывающих окон приложения.
 const overlays=Array.from(document.querySelectorAll('.modal-overlay'));
 const returns=new WeakMap(),opened=new WeakSet();

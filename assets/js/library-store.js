@@ -1,3 +1,4 @@
+import { markAchievementsDirty } from './achievement-events.js';
 import { deleteWithHistory } from './activity-store.js';
 import { db, doc, getDoc, setDoc, collection, query, where, getDocs, limit, startAfter } from './firebase-init.js';
 import { validId, posterUrl } from './shared.js';
@@ -32,7 +33,7 @@ export async function togglePlan(uid, movie) {
     const reference=doc(db,'plans',`${uid}:${key}`),snapshot=await getDoc(reference);
     if(snapshot.exists()){await deleteWithHistory(uid,'plans',reference.id);return false;}
     const data={userId:uid,tmdbId:Number(movie.tmdbId??movie.id),mediaType:movie.mediaType??movie.media_type,title:String(movie.title||movie.name||'Без названия').slice(0,500),poster:movie.poster|| (movie.poster_path?posterUrl(`https://image.tmdb.org/t/p/w500${movie.poster_path}`):''),genres:String(movie.genresText|| (Array.isArray(movie.genres)?movie.genres.map(g=>g.name).join(', '):movie.genres||'')).slice(0,500),year:String(movie.year||(movie.release_date||movie.first_air_date||'').slice(0,4)),createdAt:Date.now()};
-    await setDoc(reference,data);return true;
+    await setDoc(reference,data);markAchievementsDirty(uid,['plans']);return true;
 }
 export async function removePlan(uid, movie) {
     const key=mediaKey(movie.tmdbId,movie.mediaType);

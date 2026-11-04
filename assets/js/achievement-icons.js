@@ -1,0 +1,30 @@
+// Собственные значки рисуются SVG: без внешних изображений и дополнительных запросов.
+const paths={
+ film:'M5 5h22v22H5z M10 5v22 M22 5v22 M5 11h5 M5 21h5 M22 11h5 M22 21h5',
+ quill:'M8 24l3-9L24 4l4 4-13 13-7 3z M8 24l-3 4 M14 18l4 4',
+ book:'M4 6h9l3 3 3-3h9v21h-9l-3 2-3-2H4z M16 9v20 M8 12h4 M20 12h4 M8 17h4 M20 17h4',
+ crown:'M4 10l6 5 6-10 6 10 6-5-3 15H7z M8 29h16',
+ masks:'M3 7l12-2v15l-6 5-6-5z M17 9l12 3-2 14-7 3-4-5 M6 12h2 M11 11h2 M6 18l3 2 3-2 M21 16h2 M25 17h2 M20 23h5',
+ moon:'M24 24A12 12 0 0 1 10 5a12 12 0 1 0 14 19z M23 5v5 M20 8h6',
+ planet:'M22 6a12 12 0 1 1-15 16 M22 6A12 12 0 0 0 7 22 M5 25C-2 23 24 0 28 7S8 30 5 25z',
+ star:'M16 3l4 9 10 1-8 7 2 10-8-5-8 5 2-10-8-7 10-1z',
+ search:'M23 14a9 9 0 1 1-18 0 9 9 0 0 1 18 0z M21 21l8 8',
+ compass:'M16 3a13 13 0 1 0 0 26 13 13 0 0 0 0-26z M21 10l-3 9-8 3 3-9z',
+ bolt:'M18 2L6 18h9l-2 12 13-17h-9z',
+ heart:'M16 28L4 16V8l5-4h5l2 3 2-3h5l5 4v8z',
+ globe:'M16 3a13 13 0 1 0 0 26 13 13 0 0 0 0-26z M3 16h26 M16 3c-10 8-10 18 0 26 M16 3c10 8 10 18 0 26',
+ clock:'M16 3a13 13 0 1 0 0 26 13 13 0 0 0 0-26z M16 8v9l7 4',
+ camera:'M3 9h18v17H3z M21 14l8-5v17l-8-5 M7 3h5v6 M15 3h5v6',
+ people:'M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M3 28v-7l4-4h10l4 4v7 M23 5a5 5 0 0 1 0 10 M25 19l4 4v5',
+ tv:'M3 9h26v19H3z M10 2l6 7 6-7 M9 28v3 M23 28v3',
+ seal:'M10 3h12l7 10-4 13-9 4-9-4-4-13z M9 16l5 5 10-11',
+ sun:'M16 9a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16 1v4 M16 27v4 M1 16h4 M27 16h4 M5 5l3 3 M24 24l3 3 M5 27l3-3 M24 8l3-3',
+ flame:'M17 2l2 10 5-5 4 11-2 8-10 4-10-4-2-8 9-11-1 13 5-6z',
+ dice:'M5 4h22v24H5z M10 10h1 M21 10h1 M15 16h2 M10 22h1 M21 22h1',
+ bookmark:'M7 3h18v27l-9-6-9 6z M12 10h8 M16 6v8',
+ play:'M5 3h22v26H5z M13 10l9 6-9 6z',
+ repeat:'M5 13a11 11 0 0 1 20-5 M25 2v7h-7 M27 19A11 11 0 0 1 7 24 M7 30v-7h7',
+ spark:'M16 2l4 10 10 4-10 4-4 10-4-10-10-4 10-4z',
+ lock:'M8 14V9a8 8 0 0 1 16 0v5 M5 14h22v16H5z M16 20v5'
+};
+export function achievementIcon(name){return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="bevel" aria-hidden="true"><path d="${paths[name]||paths.star}"/></svg>`;}

@@ -1,3 +1,4 @@
+import { markAchievementsDirty } from './achievement-events.js';
 import { addRatingRevision } from './activity-store.js';
 import { db,doc,collection,getDocs,query,where,runTransaction,serverTimestamp } from './firebase-init.js';
 import { friendshipId,validUserId,getProfile } from './profile-store.js';
@@ -16,7 +17,7 @@ export async function saveJointRating(uid,movie,partner,existingId=''){
     const reference=existingId?doc(db,'movies',existingId):doc(db,'movies',`joint-source-${uid}-${crypto.randomUUID()}`);
     if(!validRecordId(reference.id))throw new Error('Неверный код оценки');
     const invitation=doc(db,'jointRatings',`${uid}:${partner.uid}:${reference.id}`);
-    return runTransaction(db,async transaction=>{
+    const result=await runTransaction(db,async transaction=>{
         const friendship=await transaction.get(doc(db,'friendships',friendshipId(uid,partner.uid)));
         if(!friendship.exists()||friendship.data().status!=='accepted')throw new Error('Совместную оценку можно отправить только подтверждённому другу');
         const source=await transaction.get(reference),previous=await transaction.get(invitation);
@@ -26,7 +27,7 @@ export async function saveJointRating(uid,movie,partner,existingId=''){
         if(previous.exists()&&previous.data().status==='accepted')return {id:reference.id,status:'accepted'};
         transaction.set(invitation,{senderId:uid,receiverId:partner.uid,members:[uid,partner.uid],sourceMovieId:reference.id,movie:payload,status:'pending',createdAt:previous.exists()?previous.data().createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
         return {id:reference.id,status:'pending'};
-    });
+    });markAchievementsDirty(uid,['movies','ratingHistory','jointRatings']);return result;
 }
 export async function listJointRatings(uid){
     const snapshot=await getDocs(query(collection(db,'jointRatings'),where('members','array-contains',uid)));
@@ -37,7 +38,7 @@ export async function listJointRatings(uid){
 export async function respondJointRating(user,id,action){
     if(!validRecordId(id)||!['accepted','declined','cancelled'].includes(action))throw new Error('Неверное действие');
     const reference=doc(db,'jointRatings',id),copy=doc(db,'movies',`joint-${id}`);
-    return runTransaction(db,async transaction=>{
+    const result=await runTransaction(db,async transaction=>{
         const snapshot=await transaction.get(reference);if(!snapshot.exists())throw new Error('Приглашение не найдено');
         const invite=snapshot.data(),receiver=invite.receiverId===user.uid;
         if(action==='cancelled' ? invite.senderId!==user.uid : !receiver)throw new Error('Это приглашение принадлежит другому участнику');
@@ -53,5 +54,5 @@ export async function respondJointRating(user,id,action){
         }
         transaction.set(reference,{...invite,status:action,updatedAt:serverTimestamp()});
         return copy.id;
-    });
+    });markAchievementsDirty(user.uid,['movies','ratingHistory','jointRatings']);return result;
 }

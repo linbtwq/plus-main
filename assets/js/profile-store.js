@@ -1,3 +1,4 @@
+import { markAchievementsDirty } from './achievement-events.js';
 import { deleteWithHistory } from './activity-store.js';
 import { auth, db, doc, getDoc, updateDoc, runTransaction, serverTimestamp, collection, query, where, onSnapshot } from './firebase-init.js';
 
@@ -37,7 +38,7 @@ export async function saveProfile(uid, displayName, bio, images = {}) {
         if (value !== '' && !safeProfileImage(value, max)) throw new Error('Некорректное изображение профиля');
         changes[field] = value;
     }
-    await updateDoc(doc(db, 'profiles', uid), changes);
+    await updateDoc(doc(db, 'profiles', uid), changes);markAchievementsDirty(uid,['profile']);
 }
 export function watchFriendships(uid, next, error) {
     return onSnapshot(query(collection(db, 'friendships'), where('members', 'array-contains', uid)), snapshot => {
@@ -56,6 +57,6 @@ export async function requestFriendship(uid, otherUid) {
     });
 }
 export async function acceptFriendship(id) {
-    await updateDoc(doc(db, 'friendships', id), { status: 'accepted', updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'friendships', id), { status: 'accepted', updatedAt: serverTimestamp() });markAchievementsDirty(auth.currentUser?.uid,['friendships']);
 }
 export async function removeFriendship(id) { await deleteWithHistory(auth.currentUser?.uid,'friendships',id); }

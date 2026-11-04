@@ -1,3 +1,4 @@
+import { markAchievementsDirty } from './achievement-events.js';
 import { db,doc,getDoc,runTransaction,serverTimestamp,collection,query,where,orderBy,limit,startAfter,getDocs } from './firebase-init.js';
 import { dayKey,streakAfter } from './activity-model.js';
 const uidValid=uid=>typeof uid==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(uid);
@@ -14,7 +15,7 @@ export async function saveRatingRecord(uid,payload,id=''){
         if(id&&(!old.exists()||old.data().userId!==uid))throw new Error('Оценка недоступна');
         const after={...payload,timestamp:old?.exists()?old.data().timestamp:payload.timestamp};
         tx.set(reference,after);addRatingRevision(tx,uid,reference.id,old?.exists()?old.data():null,after);
-    });return reference.id;
+    });markAchievementsDirty(uid,['movies','ratingHistory']);return reference.id;
 }
 export async function deleteWithHistory(uid,name,id){
     if(!uidValid(uid)||!['movies','plans','friendships'].includes(name))throw new Error('Неверное удаление');
@@ -27,6 +28,7 @@ export async function deleteWithHistory(uid,name,id){
         if(name==='friendships'){const other=data.members.find(member=>member!==uid);tx.set(doc(db,'deletedItems',idFor(other)),{...audit,userId:other});}
         tx.delete(ref);
     });
+    markAchievementsDirty(uid,[name,'deletedItems']);
 }
 export async function recordVisit(user){
     if(!uidValid(user?.uid))return;
@@ -36,7 +38,7 @@ export async function recordVisit(user){
     try{if(sessionStorage.getItem(cacheKey))return;}catch{}
     const day=doc(db,'activityDays',`${uid}:${date}`),stats=statsRef(uid);
     // Повторный переход по страницам не создаёт новые входы и дни активности.
-    await runTransaction(db,async tx=>{
+    const changed=await runTransaction(db,async tx=>{
         const [oldDay,oldStats,oldLogin]=await Promise.all([tx.get(day),tx.get(stats),login?tx.get(login):null]);
         if(oldDay.exists()&&(!login||oldLogin.exists()))return;
         const totals={...defaults,...(oldStats.exists()?oldStats.data():{})};
@@ -46,25 +48,28 @@ export async function recordVisit(user){
             if(!totals.lastDay||gap>0){totals.currentStreak=gap===1?totals.currentStreak+1:1;totals.bestStreak=Math.max(totals.bestStreak,totals.currentStreak);totals.lastDay=date;}
         }
         if(login&&!oldLogin.exists()){tx.set(login,{userId:uid,type:'login',label:'Вход в аккаунт',occurredAt:signedIn,createdAt:serverTimestamp()});totals.logins++;}
-        tx.set(stats,{...totals,userId:uid,updatedAt:serverTimestamp()});
+        tx.set(stats,{...totals,userId:uid,updatedAt:serverTimestamp()});return true;
     });
+    if(changed)markAchievementsDirty(uid,['activityStats','profile']);
     try{sessionStorage.setItem(cacheKey,'1');}catch{}
 }
 export async function recordRouletteStart(uid,mode){
     const label={classic:'Обычная',elimination:'На выбывание','no-repeat':'Без повторов'}[mode]||'Выбор фильма';
     const event=doc(db,'activityEvents',idFor(uid)),stats=statsRef(uid);
     await runTransaction(db,async tx=>{const old=await tx.get(stats);tx.set(event,{userId:uid,type:'roulette',label:`Запуск рулетки · ${label}`,occurredAt:Date.now(),createdAt:serverTimestamp()});tx.set(stats,{...defaults,...(old.exists()?old.data():{}),userId:uid,rouletteStarts:(old.exists()?old.data().rouletteStarts||0:0)+1,updatedAt:serverTimestamp()});});
+    markAchievementsDirty(uid,['activityStats']);
 }
 export async function saveWatchSession(uid,id,entry){
     const ref=doc(db,'watchSessions',id),stats=statsRef(uid);
-    await runTransaction(db,async tx=>{
+    const change=await runTransaction(db,async tx=>{
         const [old,oldStats]=await Promise.all([tx.get(ref),tx.get(stats)]),previous=old.exists()?old.data():null;
         const watchedSeconds=Math.max(previous?.watchedSeconds||0,entry.watchedSeconds||0),completed=!!(previous?.completed||entry.completed);
         const data={...entry,userId:uid,watchedSeconds,completed,completionMethod:previous?.completed?previous.completionMethod:entry.completionMethod,createdAt:previous?.createdAt||serverTimestamp(),updatedAt:serverTimestamp()};
         tx.set(ref,data);const totals={...defaults,...(oldStats.exists()?oldStats.data():{})};
         totals.watchedSeconds+=watchedSeconds-(previous?.watchedSeconds||0);totals.completions+=Number(completed)-Number(previous?.completed||false);
-        tx.set(stats,{...totals,userId:uid,updatedAt:serverTimestamp()});
+        tx.set(stats,{...totals,userId:uid,updatedAt:serverTimestamp()});return {completedNew:completed&&!previous?.completed,timeMilestone:Math.floor(watchedSeconds/300)>Math.floor((previous?.watchedSeconds||0)/300)};
     });
+    if(change.completedNew)markAchievementsDirty(uid,['activityStats','watchSessions']);else if(change.timeMilestone)markAchievementsDirty(uid,['activityStats']);
 }
 export async function readActivityPage(uid,name,cursor=null){
     if(!uidValid(uid)||!['watchSessions','ratingHistory','deletedItems','activityEvents','activityDays'].includes(name))throw new Error('Неверный запрос истории');
@@ -80,5 +85,5 @@ export async function enrichRating(uid,id,metadata){
     await runTransaction(db,async tx=>{
         const old=await tx.get(ref);if(!old.exists()||old.data().userId!==uid)throw new Error('Оценка недоступна');
         const after={...old.data(),metadata};tx.set(ref,after);addRatingRevision(tx,uid,id,old.data(),after,'metadata');
-    });
+    });markAchievementsDirty(uid,['movies','ratingHistory']);
 }

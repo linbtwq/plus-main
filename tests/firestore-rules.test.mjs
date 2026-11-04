@@ -238,3 +238,38 @@ test('Личные журналы защищают просмотр, верси�
         await ok(await request('/deletedItems/bob:friend','bob'));await denied(await request('/deletedItems/bob:friend','alice'));
     });
 });
+
+test('Достижения компилируются с полным каталогом, защищают даты и витрины', {skip:!enabled}, async t=>{
+ const {ACHIEVEMENTS}=await import('../assets/js/achievement-catalog.js');
+ await t.test('Полный кэш из 40 показателей и массовая выдача наград укладываются в лимиты',async()=>{
+  const metrics=Object.fromEntries([...new Set(ACHIEVEMENTS.map(item=>item.metric))].map(key=>[key,1000]));
+  const progress={update:{name:name('achievementProgress/alice'),fields:fieldsOf({userId:'alice',metrics})},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]};
+  await ok(await commit('alice',[progress]));
+  const grants=ACHIEVEMENTS.map(item=>({update:{name:name('achievements/alice:'+item.id),fields:fieldsOf({userId:'alice',achievementId:item.id})},updateTransforms:[{fieldPath:'unlockedAt',setToServerValue:'REQUEST_TIME'}]}));
+  await ok(await commit('alice',grants));
+  await denied(await request('/achievementProgress/alice','bob'));
+  await denied(await commit('bob',[progress]));
+  await denied(await commit('alice',[{...progress,update:{...progress.update,fields:fieldsOf({userId:'alice',metrics:{unlisted:1}})}}]));
+  await denied(await commit('alice',[{...grants[0],update:{...grants[0].update,fields:fieldsOf({userId:'alice',achievementId:'does-not-exist'})}}]));
+  await denied(await commit('alice',[grants[0]]));
+  await denied(await commit('alice',[{delete:name('achievements/alice:archive-1')}]));
+ });
+ await t.test('Витрина принимает только полученные награды, без повторов и не больше трёх',async()=>{
+  const cabinet=ids=>({update:{name:name('achievementCabinets/alice'),fields:fieldsOf({userId:'alice',badges:ids})},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]});
+  await ok(await commit('alice',[cabinet(['archive-1','archive-2','archive-3'])]));
+  await denied(await commit('alice',[cabinet(['archive-1','archive-1'])]));
+  await denied(await commit('alice',[cabinet(['archive-1','archive-2','archive-3','archive-4'])]));
+  await denied(await commit('alice',[cabinet(['unknown'])]));
+  await denied(await commit('bob',[cabinet([])]));
+  await denied(await request('/achievementCabinets/alice','bob'));
+  await ok(await commit('alice',[write('friendships/alice:bob',relation('alice','bob'),true)]));
+  await ok(await commit('bob',[{update:{name:name('friendships/alice:bob'),fields:{status:string('accepted')}},updateMask:{fieldPaths:['status']},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]}]));
+  await ok(await request('/achievementCabinets/alice','bob'));
+  await ok(await request('/achievements/alice:archive-1','bob'));
+  await denied(await request('/achievementProgress/alice','bob'));
+  const q={structuredQuery:{from:[{collectionId:'achievements'}],where:{fieldFilter:{field:{fieldPath:'userId'},op:'EQUAL',value:string('alice')}}}};
+  await ok(await request(':runQuery','bob',{method:'POST',body:JSON.stringify(q)}));
+  await ok(await commit('alice',[{delete:name('friendships/alice:bob')}]));
+  await denied(await request('/achievements/alice:archive-1','bob'));
+ });
+});

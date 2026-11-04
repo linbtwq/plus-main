@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta charset="UTF-8">
     <title>plus.plus | История</title>
-    <link rel="stylesheet" href="../assets/css/style.css?v=20261102-activity">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261105-achievements">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body>
@@ -30,13 +30,14 @@
             <a href="list.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-clapperboard"/></svg></span> Архив</a>
             <a href="plans.html" class="side-link active">♡ Хочу посмотреть</a>
             <a href="roulette.html" class="side-link"><span><svg class="ic" aria-hidden="true"><use href="#i-dices"/></svg></span> Рулетка</a>
+            <a href="achievements.html" class="side-link"><span aria-hidden="true">◇</span> Достижения</a>
             <a href="profile.html" class="side-link"><span aria-hidden="true">◎</span> Профиль и друзья</a>
         </nav>
         <button id="sidebar-logout" class="side-exit-btn">Выйти</button>
     </aside>
 
     <main class="activity-wrapper">
-        <div class="section-topline"><div><a href="profile.html">← Мой профиль</a><h1>История и активность</h1></div><button id="activity-refresh" class="profile-small-btn" type="button">Обновить</button></div>
+        <div class="section-topline"><div><a href="profile.html">← Мой профиль</a><a href="achievements.html">Достижения ↗</a><h1>История и активность</h1></div><button id="activity-refresh" class="profile-small-btn" type="button">Обновить</button></div>
         <p class="activity-note">История ведётся с момента подключения этой функции. Внешние плееры не всегда передают время; ручные отметки досмотра показаны отдельно.</p>
         <div id="activity-metrics" class="activity-metrics"></div>
         <p id="activity-summary-status" role="status"></p>
@@ -45,7 +46,7 @@
         <section class="activity-enrichment"><h2>Сведения о фильмах</h2><p>Новые оценки сохраняют год, страны, режиссёров, создателей сериалов и первых 20 актёров, если эти сведения доступны. Старые записи можно дополнить; баллы и отзывы сохранятся.</p><button id="activity-enrich" class="profile-small-btn" type="button">Дополнить старые оценки</button><p id="activity-enrich-status" role="status" aria-live="polite"></p></section>
     </main>
     <script src="../assets/js/burger.js"></script>
-    <script type="module" src="../assets/js/interface.js?v=20261102-lite"></script>
+    <script type="module" src="../assets/js/interface.js?v=20261105-achievements"></script>
     <script type="module" src="../assets/js/activity.js"></script>
 </body>
 </html>
