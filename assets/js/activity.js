@@ -40,7 +40,14 @@ async function load(append=false){
     if(!user||busy||append&&!more)return;const request=++version;busy=true;el('activity-more').disabled=true;
     if(!append){cursor=null;el('activity-list').replaceChildren();}el('activity-status').textContent='Загружаем историю…';
     try{const result=await readActivityPage(user.uid,section,cursor);if(request!==version)return;cursor=result.cursor;more=result.more;result.records.forEach(renderRecord);el('activity-more').hidden=!more;el('activity-status').textContent=el('activity-list').children.length?'':'В этом разделе пока нет записей.';}
-    catch{if(request===version)el('activity-status').textContent='Не удалось загрузить историю. Проверь соединение и нажми «Обновить».';}
+    catch(error){if(request===version){
+        const status=el('activity-status');status.replaceChildren();
+        const code=String(error?.code||'').replace(/^firestore\//,'');
+        status.textContent=code==='failed-precondition'?'Для истории ещё не готов индекс Firestore. Опубликуй индексы проекта и дождись их включения.':code==='permission-denied'?'Firestore запретил доступ к истории. Проверь, что опубликована актуальная версия firestore.rules.':'Не удалось загрузить историю. Проверь соединение и нажми «Обновить».';
+        const url=String(error?.message||'').match(/https:\/\/console\.firebase\.google\.com\/[^\s)]+/)?.[0];
+        if(code==='failed-precondition'&&url){const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=' Создать нужный индекс ↗';status.append(link);}
+        console.error('Ошибка загрузки истории:',error);
+    }}
     finally{if(request===version){busy=false;el('activity-more').disabled=false;}}
 }
 for(const button of document.querySelectorAll('[data-history]'))button.addEventListener('click',()=>{version++;busy=false;section=button.dataset.history;document.querySelectorAll('[data-history]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));load();});
