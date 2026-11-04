@@ -207,7 +207,12 @@ onAuthStateChanged(auth, user => {
     currentUser = user; initialize(user);
 });
 window.addEventListener('pagehide', () => {jointInbox.setUser(null,false); comparison.setAccess('','',false);ratings.setAccess('', false); unsubscribe?.(); unsubscribe = null; friendsReady = false; });
-window.addEventListener('pageshow', event => { if (event.persisted && currentUser && targetProfile) listenFriends(); });
+window.addEventListener('pageshow', event => {
+    if(event.persisted && currentUser && targetProfile){
+        jointInbox.setUser(currentUser,targetProfile.uid===currentUser.uid);
+        listenFriends();
+    }
+});
 element('profile-retry').addEventListener('click', () => initialize(currentUser));
 element('sidebar-logout').addEventListener('click', () => signOut(auth).catch(() => message('Не удалось выйти. Попробуйте ещё раз.', true)));
 element('profile-form').addEventListener('submit', async event => {

@@ -1,3 +1,4 @@
+import { normalizeMediaTitle, mediaPosterKey } from './rating-match.js';
 export const TMDB_API_KEY = '4ff5ea09116c72aed9a95dd1b65183c4';
 export const NO_POSTER = new URL('../img/no-poster.svg', import.meta.url).href;
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -29,11 +30,16 @@ export async function tmdb(path, params = {}, signal) {
 export async function resolveMedia(movie) {
     const mediaType = movie.mediaType === 'tv' || ['anime', 'series'].includes(movie.type) ? 'tv' : 'movie';
     if (validId(movie.tmdbId)) return { id: movie.tmdbId, mediaType };
-    const data = await tmdb(`search/${mediaType}`, { query: movie.title });
+    const data = await tmdb(`search/${mediaType}`, { query: normalizeMediaTitle(movie.title) });
     const matches = (data.results || []).filter(item => validId(item.id));
-    const title = String(movie.title).trim().toLocaleLowerCase();
-    const match = matches.find(item => String(item.title || item.name).trim().toLocaleLowerCase() === title) || matches[0];
-    if (!match) throw new Error('Тайтл не найден в каталоге');
+    const title = normalizeMediaTitle(movie.title);
+    const poster = mediaPosterKey(movie.poster);
+    const byPoster = poster && matches.find(item => mediaPosterKey(`https://image.tmdb.org/t/p/w500${item.poster_path || ''}`) === poster);
+    const exact = matches.filter(item => normalizeMediaTitle(item.title || item.name) === title
+        && (!movie.year || String(movie.year) === String(item.release_date || item.first_air_date || '').slice(0,4)));
+    // Не отправляем пользователя на случайный первый результат или одноимённый ремейк.
+    const match = byPoster || (exact.length === 1 ? exact[0] : null);
+    if (!match) throw new Error('Не удалось однозначно найти тайтл. Уточни его через поиск в каталоге.');
     return { id: match.id, mediaType };
 }
 

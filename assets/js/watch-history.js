@@ -2,7 +2,7 @@ import { validId } from './shared.js';
 const sources=['collaps','vidsrc','2embed','superembed','vidlink','aniliberty'];
 export function readWatchHistory(uid){
     if(!uid)return [];
-    try{const values=JSON.parse(localStorage.getItem(`watchHistory:${uid}`)||'[]');return Array.isArray(values)?values.filter(m=>validId(m.tmdbId)&&['movie','tv'].includes(m.mediaType)&&sources.includes(m.source)&&Number.isInteger(m.season)&&m.season>0&&Number.isInteger(m.episode)&&m.episode>0).slice(0,20):[];}catch{return [];}
+    try{const values=JSON.parse(localStorage.getItem(`watchHistory:${uid}`)||'[]');return Array.isArray(values)?values.filter(m=>m&&typeof m==='object'&&validId(m.tmdbId)&&['movie','tv'].includes(m.mediaType)&&sources.includes(m.source)&&Number.isInteger(m.season)&&m.season>0&&Number.isInteger(m.episode)&&m.episode>0).slice(0,20):[];}catch{return [];}
 }
 export function saveWatchProgress(uid,entry){
     if(!uid||!validId(entry.tmdbId)||!['movie','tv'].includes(entry.mediaType)||!sources.includes(entry.source))return;

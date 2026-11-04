@@ -5,7 +5,7 @@ export async function searchAnime(query){const data=await fetchJson(`${API}app/s
 export async function getAnimeRelease(id){if(!Number.isSafeInteger(Number(id))||Number(id)<=0)throw new Error('Неверный выпуск');return fetchJson(`${API}anime/releases/${id}`);}
 let hlsLibrary;
 async function loadHls(){if(window.Hls)return window.Hls;hlsLibrary||=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=new URL('../vendor/hls.light.min.js',import.meta.url).href;script.onload=()=>resolve(window.Hls);script.onerror=()=>{hlsLibrary=null;reject(new Error('Не удалось загрузить видеоплеер'));};document.head.append(script);});return hlsLibrary;}
-export function createAnimePlayer({container,panel,status,onProgress}){
+export function createAnimePlayer({container,panel,status,onProgress,onPlayback=()=>{}}){
     let hls,video,release,version=0,active=false,searchVersion=0,resume=null,lastSaved=0;
     const search=document.getElementById('anime-query'),results=document.getElementById('anime-results'),episodes=document.getElementById('anime-episode'),quality=document.getElementById('anime-quality');
     function stop(){version++;if(video){video.pause();video.removeAttribute('src');video.load();video=null;}hls?.destroy();hls=null;}
@@ -15,9 +15,11 @@ export function createAnimePlayer({container,panel,status,onProgress}){
         const stream=safeAnimeStream(episode[`hls_${quality.value}`]);
         if(!stream){status.textContent='Эта серия недоступна в выбранном качестве.';return;}
         video=document.createElement('video');const current=video;current.controls=true;current.playsInline=true;current.preload='metadata';current.className='anime-video';container.replaceChildren(current);status.textContent='Загружаем серию в озвучке AniLiberty…';
+        const playback=(ended=false,seeking=false)=>{if(request!==version)return;onPlayback({animeRelease:release.id,episode:Number(episode.ordinal),position:current.currentTime,duration:current.duration,playing:!current.paused&&!current.seeking&&current.readyState>=2,rate:current.playbackRate,seeking,ended});};
         const progress=()=>{if(request!==version)return;onProgress({animeRelease:release.id,animeEpisode:episode.ordinal,quality:quality.value,position:Number.isFinite(current.currentTime)?Math.floor(current.currentTime):0});};
         current.addEventListener('loadedmetadata',()=>{if(request!==version)return;if(resume&&Number(resume.animeRelease)===release.id&&Number(resume.animeEpisode)===episode.ordinal&&Number.isFinite(resume.position)&&resume.position>0&&resume.position<current.duration-10)current.currentTime=resume.position;resume=null;progress();status.textContent='Озвучка AniLiberty. Позиция сохраняется в этом браузере.';});
-        current.addEventListener('timeupdate',()=>{if(Date.now()-lastSaved>5000){lastSaved=Date.now();progress();}});current.addEventListener('pause',progress);current.addEventListener('seeked',progress);current.addEventListener('error',()=>{if(request===version)status.textContent='Не удалось воспроизвести серию. Попробуй другое качество или источник.';});
+        current.addEventListener('play',()=>playback());current.addEventListener('pause',()=>playback());current.addEventListener('seeking',()=>playback(false,true));current.addEventListener('seeked',()=>playback(false,true));current.addEventListener('ended',()=>playback(true));
+        current.addEventListener('timeupdate',()=>{playback();if(Date.now()-lastSaved>5000){lastSaved=Date.now();progress();}});current.addEventListener('pause',progress);current.addEventListener('seeked',progress);current.addEventListener('error',()=>{if(request===version)status.textContent='Не удалось воспроизвести серию. Попробуй другое качество или источник.';});
         const skip=document.getElementById('anime-skip-opening');const opening=episode.opening;skip.hidden=!(Number.isFinite(opening?.start)&&Number.isFinite(opening?.stop)&&opening.stop>opening.start);skip.onclick=()=>{if(current.currentTime>=opening.start&&current.currentTime<opening.stop)current.currentTime=opening.stop;};
         current.addEventListener('timeupdate',()=>{skip.disabled=!(opening&&current.currentTime>=opening.start&&current.currentTime<opening.stop);});
         try{

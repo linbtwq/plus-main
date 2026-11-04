@@ -143,10 +143,12 @@ test('Правила профилей и друзей запрещают под�
         const acceptFriend={update:{name:name('friendships/alice:bob'),fields:{status:string('accepted')}},updateMask:{fieldPaths:['status']},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]};
         await ok(await commit('bob',[acceptFriend]));
         const fields={userId:string('alice'),title:string('Общий фильм'),score:{doubleValue:8},type:string('movie'),poster:string(''),genres:string('Драма'),authorName:string('Алиса'),authorPhoto:{nullValue:null},date:string('01.11.2026'),stats:{mapValue:{fields:Object.fromEntries(['script','actors','directing','chars','idea','atmosphere','impression'].map(key=>[key,string(['atmosphere','impression'].includes(key)?'4.0/4.0':'8.0/8.0')]))}},review:string('Общий отзыв'),isDuo:{booleanValue:true},tmdbId:{integerValue:'123'},mediaType:string('movie'),schemaVersion:{integerValue:'2'},ratingMode:string('detailed'),jointPartnerId:string('bob'),jointPartnerName:string('Боб'),jointFirstId:string('alice')};
+        fields.metadata=encode({year:2026,runtime:128,directors:[{id:1,name:'Режиссёр'}],creators:[],actors:[{id:2,name:'Актёр'}],countries:['US']});
         const source='joint-source-alice-00000000-0000-4000-8000-000000000001',id='alice:bob:'+source;
         const createJoint=(sourceId,status='pending')=>[
             {update:{name:name('movies/'+sourceId),fields},updateTransforms:[{fieldPath:'timestamp',setToServerValue:'REQUEST_TIME'}]},
             {update:{name:name('jointRatings/alice:bob:'+sourceId),fields:{senderId:string('alice'),receiverId:string('bob'),members:{arrayValue:{values:[string('alice'),string('bob')]}},sourceMovieId:string(sourceId),movie:{mapValue:{fields}},status:string(status)}},updateTransforms:[{fieldPath:'movie.timestamp',setToServerValue:'REQUEST_TIME'},{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'},{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]}
+            ,{update:{name:name('ratingHistory/alice:'+sourceId),fields:{userId:string('alice'),movieId:string(sourceId),before:{nullValue:null},after:{mapValue:{fields}},reason:string('joint')}},updateTransforms:[{fieldPath:'after.timestamp',setToServerValue:'REQUEST_TIME'},{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}]}
         ];
         assert.equal((await request('/movies/'+source,'alice')).status,404);
         assert.equal((await request('/jointRatings/'+id,'alice')).status,404);
@@ -161,7 +163,8 @@ test('Правила профилей и друзей запрещают под�
         const copy={update:{name:name('movies/joint-'+id),fields:{...sourceFields,userId:string('bob'),authorName:string('Боб'),jointPartnerId:string('alice'),jointPartnerName:string('Алиса')}},updateTransforms:[{fieldPath:'timestamp',setToServerValue:'REQUEST_TIME'}]};
         await denied(await commit('bob',[{...copy,update:{...copy.update,fields:{...copy.update.fields,score:{doubleValue:1}}}},change(id,'accepted')]));
         assert.equal((await request('/movies/joint-'+id,'bob')).status,404);
-        await ok(await commit('bob',[copy,change(id,'accepted')]));
+        const copyRevision={update:{name:name('ratingHistory/bob:accepted'),fields:{userId:string('bob'),movieId:string('joint-'+id),before:{nullValue:null},after:{mapValue:{fields:copy.update.fields}},reason:string('joint')}},updateTransforms:[{fieldPath:'after.timestamp',setToServerValue:'REQUEST_TIME'},{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}]};
+        await ok(await commit('bob',[copy,change(id,'accepted'),copyRevision]));
         const saved=(await (await request('/movies/joint-'+id,'bob')).json()).fields;assert.deepEqual(saved.stats,sourceFields.stats);assert.deepEqual(saved.score,sourceFields.score);assert.equal(saved.userId.stringValue,'bob');
         await denied(await commit('alice',[change(id,'cancelled')]));
         const second=source.replace(/1$/,'2'),secondId='alice:bob:'+second;
@@ -170,4 +173,68 @@ test('Правила профилей и друзей запрещают под�
         await denied(await commit('alice',createJoint(source.replace(/1$/,'4'))));
     });
 
+});
+
+function encode(value){
+    if(value===null)return {nullValue:null};
+    if(typeof value==='string')return string(value);
+    if(typeof value==='boolean')return {booleanValue:value};
+    if(typeof value==='number')return Number.isInteger(value)?{integerValue:String(value)}:{doubleValue:value};
+    if(Array.isArray(value))return {arrayValue:{values:value.map(encode)}};
+    return {mapValue:{fields:Object.fromEntries(Object.entries(value).map(([key,item])=>[key,encode(item)]))}};
+}
+const fieldsOf=value=>encode(value).mapValue.fields;
+const createJournal=(path,fields)=>({update:{name:name(path),fields},updateTransforms:[{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}]});
+test('Личные журналы защищают просмотр, версии оценок и удалённые данные', {skip:!enabled}, async t=>{
+    await t.test('Дни и события неизменяемы и закрыты от других пользователей',async()=>{
+        const day={userId:'alice',date:'2026-11-02',timezone:'Europe/Kyiv'};
+        await ok(await commit('alice',[createJournal('activityDays/alice:2026-11-02',fieldsOf(day))]));
+        await ok(await request('/activityDays/alice:2026-11-02','alice'));
+        await denied(await request('/activityDays/alice:2026-11-02','bob'));
+        await denied(await commit('alice',[createJournal('activityDays/alice:2026-11-02',fieldsOf({...day,timezone:'UTC'}))]));
+        await ok(await commit('alice',[createJournal('activityEvents/alice:launch',fieldsOf({userId:'alice',type:'roulette',label:'Запуск',occurredAt:1000}))]));
+        await denied(await commit('bob',[createJournal('activityEvents/alice:fake',fieldsOf({userId:'alice',type:'roulette',label:'Подмена',occurredAt:1000}))]));
+        await denied(await commit('alice',[{delete:name('activityEvents/alice:launch')}]));
+    });
+    await t.test('Сессия не позволяет уменьшить время, сменить владельца или отменить досмотр',async()=>{
+        const entry={userId:'alice',tmdbId:123,mediaType:'movie',title:'Тест',source:'vidlink',season:1,episode:1,animeRelease:0,position:0,duration:100,watchedSeconds:0,completed:false,completionMethod:'none'};
+        const first=createJournal('watchSessions/alice:session',fieldsOf(entry));first.updateTransforms.push({fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'});
+        await ok(await commit('alice',[first]));
+        const old=(await (await request('/watchSessions/alice:session','alice')).json()).fields;
+        const change=changes=>({update:{name:name('watchSessions/alice:session'),fields:{...old,...fieldsOf(changes)}},updateTransforms:[{fieldPath:'updatedAt',setToServerValue:'REQUEST_TIME'}]});
+        await ok(await commit('alice',[change({watchedSeconds:10,completed:true,completionMethod:'manual'})]));
+        await denied(await commit('alice',[change({watchedSeconds:1,completed:true,completionMethod:'manual'})]));
+        await denied(await commit('alice',[change({watchedSeconds:10,completed:false,completionMethod:'none'})]));
+        await denied(await request('/watchSessions/alice:session','bob'));
+        await denied(await commit('bob',[change({userId:'bob',watchedSeconds:20})]));
+    });
+    await t.test('Версия связана с реальной оценкой и не может быть переписана или подделана',async()=>{
+        const before=(await (await request('/movies/detailed-rating','alice')).json()).fields;
+        const after={...before,review:string('Версия для журнала')};
+        const revision={userId:string('alice'),movieId:string('detailed-rating'),before:{mapValue:{fields:before}},after:{mapValue:{fields:after}},reason:string('rating')};
+        const update={update:{name:name('movies/detailed-rating'),fields:after}};
+        await denied(await commit('alice',[createJournal('ratingHistory/alice:fake',revision)]));
+        await ok(await commit('alice',[update,createJournal('ratingHistory/alice:revision',revision)]));
+        await denied(await request('/ratingHistory/alice:revision','bob'));
+        await denied(await commit('alice',[{delete:name('ratingHistory/alice:revision')}]));
+        await denied(await commit('alice',[createJournal('ratingHistory/alice:revision',revision)]));
+        const metadata=fieldsOf({year:2026,runtime:128,directors:[{id:1,name:'Режиссёр'}],creators:[],actors:[{id:2,name:'Актёр'}],countries:['US']});
+        await ok(await commit('alice',[{update:{name:name('movies/detailed-rating'),fields:{metadata:{mapValue:{fields:metadata}}}},updateMask:{fieldPaths:['metadata']}}]));
+        await denied(await commit('alice',[{update:{name:name('movies/detailed-rating'),fields:{metadata:{mapValue:{fields:{...metadata,year:string('не год')}}}}},updateMask:{fieldPaths:['metadata']}}]));
+    });
+    await t.test('Снимок удаления создаётся только с настоящим удалением и остаётся приватным',async()=>{
+        const data=fieldsOf({userId:'alice',tmdbId:456,mediaType:'movie',title:'План для удаления',poster:'',genres:'',year:'2026',createdAt:100});
+        const path='plans/alice:movie:456';await ok(await commit('alice',[{update:{name:name(path),fields:data}}]));
+        const audit={userId:string('alice'),actorId:string('alice'),collectionName:string('plans'),itemId:string('alice:movie:456'),snapshot:{mapValue:{fields:data}}};
+        await denied(await commit('alice',[createJournal('deletedItems/alice:no-delete',audit)]));
+        await ok(await commit('alice',[{delete:name(path)},createJournal('deletedItems/alice:deleted',audit)]));
+        await ok(await request('/deletedItems/alice:deleted','alice'));await denied(await request('/deletedItems/alice:deleted','bob'));
+        await denied(await commit('alice',[{delete:name('deletedItems/alice:deleted')}]));
+        await ok(await commit('alice',[write('friendships/alice:bob',relation('alice','bob'),true)]));
+        const friendship=(await (await request('/friendships/alice:bob','alice')).json()).fields;
+        const baseAudit={actorId:string('alice'),collectionName:string('friendships'),itemId:string('alice:bob'),snapshot:{mapValue:{fields:friendship}}};
+        await denied(await commit('alice',[{delete:name('friendships/alice:bob')},createJournal('deletedItems/carol:friend',{...baseAudit,userId:string('carol')})]));
+        await ok(await commit('alice',[{delete:name('friendships/alice:bob')},createJournal('deletedItems/alice:friend',{...baseAudit,userId:string('alice')}),createJournal('deletedItems/bob:friend',{...baseAudit,userId:string('bob')})]));
+        await ok(await request('/deletedItems/bob:friend','bob'));await denied(await request('/deletedItems/bob:friend','alice'));
+    });
 });

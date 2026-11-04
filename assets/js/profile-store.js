@@ -1,4 +1,5 @@
-import { db, doc, getDoc, updateDoc, deleteDoc, runTransaction, serverTimestamp, collection, query, where, onSnapshot } from './firebase-init.js';
+import { deleteWithHistory } from './activity-store.js';
+import { auth, db, doc, getDoc, updateDoc, runTransaction, serverTimestamp, collection, query, where, onSnapshot } from './firebase-init.js';
 
 export const validUserId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 export function friendshipId(first, second) {
@@ -57,4 +58,4 @@ export async function requestFriendship(uid, otherUid) {
 export async function acceptFriendship(id) {
     await updateDoc(doc(db, 'friendships', id), { status: 'accepted', updatedAt: serverTimestamp() });
 }
-export async function removeFriendship(id) { await deleteDoc(doc(db, 'friendships', id)); }
+export async function removeFriendship(id) { await deleteWithHistory(auth.currentUser?.uid,'friendships',id); }

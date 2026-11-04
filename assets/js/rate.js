@@ -1,8 +1,11 @@
+import { saveRatingRecord } from './activity-store.js';
+import { mediaMetadata } from './activity-model.js';
+import { findRating } from './rating-match.js';
 import { createJointRatingForm } from './joint-rating-form.js';
 import { saveJointRating } from './joint-ratings.js';
 import { readAll, removePlan } from './library-store.js';
 import { getProfile } from './profile-store.js';
-import { auth, db, collection, addDoc, getDoc, doc, updateDoc, serverTimestamp, onAuthStateChanged, signOut } from './firebase-init.js';
+import { auth, db, getDoc, doc, serverTimestamp, onAuthStateChanged, signOut } from './firebase-init.js';
 
 import { TMDB_API_KEY, fetchJson, tmdb, validId } from './shared.js';
 const ratingMode = 'detailed';
@@ -223,7 +226,7 @@ document.getElementById('save-btn').onclick = async () => {
     try {
         const authorProfile = await getProfile(currentUser.uid).catch(() => null);
         if(!editingRecord){
-            const duplicate=(await readAll('movies',currentUser.uid)).filter(m=>Number(m.tmdbId)===Number(selectedTmdbId)&&m.mediaType===selectedMediaType).sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0))[0];
+            const duplicate=findRating((await readAll('movies',currentUser.uid)).sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0)),{id:selectedTmdbId,mediaType:selectedMediaType,title:titleInput.value,poster:selectedPoster,year:(selectedMovie?.release_date||selectedMovie?.first_air_date||'').slice(0,4)});
             if(duplicate){if(!confirm('У тебя уже есть оценка этого тайтла. Обновить её вместо создания копии?')){saving=false;btn.disabled=false;btn.innerHTML=SAVE_HTML;return;}editingRecord=duplicate;}
         }
         const payload = {
@@ -233,11 +236,11 @@ document.getElementById('save-btn').onclick = async () => {
             authorPhoto: currentUser.photoURL, userId: currentUser.uid, timestamp: editingRecord?.timestamp || serverTimestamp(),
             date: editingRecord?.date || new Date().toLocaleDateString('ru-RU'), stats: finalStats, review: document.getElementById('review-text').value.trim() || null
         };
+        try{payload.metadata=mediaMetadata(await tmdb(`${selectedMediaType}/${selectedTmdbId}`,{append_to_response:'credits'}),selectedMediaType);}catch{if(editingRecord?.metadata)payload.metadata=editingRecord.metadata;}
         const partner=jointForm.selected();
         if(editingRecord?.jointPartnerId){payload.jointPartnerId=editingRecord.jointPartnerId;payload.jointPartnerName=editingRecord.jointPartnerName||'';payload.jointFirstId=currentUser.uid;}
         if(partner&&!editingRecord?.jointPartnerId)await saveJointRating(currentUser.uid,payload,partner,editingRecord?.id||'');
-        else if(editingRecord)await updateDoc(doc(db,'movies',editingRecord.id),payload);
-        else await addDoc(collection(db,'movies'),payload);
+        else await saveRatingRecord(currentUser.uid,payload,editingRecord?.id||'');
         removePlan(currentUser.uid,{tmdbId:selectedTmdbId,mediaType:selectedMediaType}).catch(()=>{});
         try { if (typeof window.confetti === 'function') window.confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#78B6DB', '#E9F0F8', '#B8104B', '#FF5C8D'] }); } catch { /* Сохранение не зависит от декоративной анимации. */ }
         try { if(!new URLSearchParams(location.search).has('edit'))localStorage.removeItem(`ratingDraft:${currentUser.uid}`); } catch {}

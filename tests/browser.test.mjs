@@ -15,10 +15,11 @@ export const where = (...args) => ({where:args}), orderBy = (...args) => ({order
 export const query = (ref, ...constraints) => ({...ref, constraints});
 export const getDocs = async q => {
  window.__queries = [...(window.__queries || []), q];
+ if(q.name==='plans'&&window.__plansFail)throw new Error('Планы недоступны');
  await new Promise(resolve => setTimeout(resolve, window.__archiveDelay || 0));
  if (window.__archiveFailOnce) {window.__archiveFailOnce=false; throw new Error('Проверка повторной загрузки');}
  const cursor = q.constraints.find(c => c.cursor)?.cursor;
- let data = q.name === 'jointRatings' ? Object.entries(window.__jointRecords || {}).map(([id,m])=>({...m,id})) : q.name === 'plans' ? Object.entries(window.__plans || {}).map(([id,m])=>({...m,id})) : q.name === 'friendships' ? Object.entries(window.__friendRecords || {}).map(([id,m])=>({...m,id})) : window.__movies || [];
+ let data = q.name === 'jointRatings' ? Object.entries(window.__jointRecords || {}).map(([id,m])=>({...m,id})) : q.name === 'plans' ? Object.entries(window.__plans || {}).map(([id,m])=>({...m,id})) : q.name === 'friendships' ? Object.entries(window.__friendRecords || {}).map(([id,m])=>({...m,id})) : q.name==='movies' ? window.__movies || [] : Object.entries(window.__journal?.[q.name]||{}).map(([id,m])=>({...m,id}));
  const member=q.constraints.find(c=>c.where?.[0]==='members')?.where[2];if(member)data=data.filter(m=>m.members.includes(member));
  const owner = q.constraints.find(c => c.where?.[0] === 'userId')?.where[2];
  if (owner) data = data.filter(movie => movie.userId === owner);
@@ -30,7 +31,7 @@ export const getDocs = async q => {
 const profileData = () => window.__profiles ||= {owner:{displayName:'Тест',bio:'',photoURL:''}};
 const friendData = () => window.__friendRecords ||= {};
 const snapshot = ref => {
- const value = ref.name === 'profiles' ? profileData()[ref.id] : ref.name === 'friendships' ? friendData()[ref.id] : ref.name === 'jointRatings' ? (window.__jointRecords||{})[ref.id] : ref.name === 'plans' ? (window.__plans||{})[ref.id] : ref.name==='movies' ? (window.__movies||[]).find(m=>m.id===ref.id) : {text:window.__roulette || ''};
+ const value = ref.name === 'profiles' ? profileData()[ref.id] : ref.name === 'friendships' ? friendData()[ref.id] : ref.name === 'jointRatings' ? (window.__jointRecords||{})[ref.id] : ref.name === 'plans' ? (window.__plans||{})[ref.id] : ref.name==='movies' ? (window.__movies||[]).find(m=>m.id===ref.id) : ref.name==='roulette' ? {text:window.__roulette || ''} : window.__journal?.[ref.name]?.[ref.id];
  return {exists:()=>!!value,data:()=>value};
 };
 let listener;
@@ -47,9 +48,17 @@ export const updateDoc = async (ref,data) => {
 };
 export const runTransaction = async (db, callback) => {
  const writes=[];
- const result=await callback({get:async ref=>snapshot(ref),set:(ref,data)=>writes.push([ref,data])});
+ const result=await callback({get:async ref=>snapshot(ref),set:(ref,data)=>writes.push([ref,data]),delete:ref=>writes.push([ref,null])});
  if(window.__transactionFailOnce){window.__transactionFailOnce=false;throw new Error('Проверка атомарности');}
- writes.forEach(([ref,data])=>{if(ref.name === 'profiles')profileData()[ref.id]=data;else if(ref.name === 'friendships')friendData()[ref.id]=data;else if(ref.name==='jointRatings'){window.__jointRecords||={};window.__jointRecords[ref.id]=data;}else if(ref.name==='movies'){window.__movies||=[];const index=window.__movies.findIndex(m=>m.id===ref.id);if(index>=0)window.__movies[index]={...data,id:ref.id};else window.__movies.push({...data,id:ref.id});}else if(ref.name==='roulette'){window.__roulette=data.text;window.__cloud={ref,data};}});
+ writes.forEach(([ref,data])=>{
+  if(data===null){window.__deleted=ref;if(ref.name==='movies')window.__movies=(window.__movies||[]).filter(m=>m.id!==ref.id);else if(ref.name==='friendships')delete friendData()[ref.id];else if(ref.name==='plans')delete (window.__plans||{})[ref.id];return;}
+  if(ref.name==='profiles')profileData()[ref.id]=data;
+  else if(ref.name==='friendships')friendData()[ref.id]=data;
+  else if(ref.name==='jointRatings'){window.__jointRecords||={};window.__jointRecords[ref.id]=data;}
+  else if(ref.name==='movies'){window.__movies||=[];const index=window.__movies.findIndex(m=>m.id===ref.id);if(index>=0){window.__updated={ref,data};window.__movies[index]={...data,id:ref.id};}else{window.__saved=data;window.__movies.push({...data,id:ref.id});}}
+  else if(ref.name==='roulette'){window.__roulette=data.text;window.__cloud={ref,data};}
+  else {window.__journal||={};window.__journal[ref.name]||={};window.__journal[ref.name][ref.id]=data;}
+ });
  notify();return result;
 };
 export const onSnapshot = (q,next,error) => {listener=next;notify();return ()=>{listener=null;};};
@@ -101,19 +110,20 @@ try {
         assert.equal(await page.evaluate(() => window.__xss), undefined);
         await page.close();
     });
-    await test('Плеер по умолчанию открывает русскоязычный источник и передаёт серию', async () => {
+    await test('Плееры не дублируют выбор серий, смена источника и перезапуск работают', async () => {
         const page = await context.newPage();
         await page.goto(`${base}/pages/watch.html?id=123&type=tv&title=Тест`);
         await page.waitForFunction(() => document.querySelector('#kodik-player iframe')?.src.includes('/imdb/tt0133093'));
         assert.equal(await page.locator('#source-select').inputValue(),'collaps');
-        await page.locator('#episode-select').selectOption('2');
-        await page.waitForFunction(() => new URL(document.querySelector('#kodik-player iframe').src).searchParams.get('episode') === '2');
+        assert.equal(await page.locator('#season-select,#episode-select').count(),0);
         assert.match(await page.locator('#audio-hint').textContent(),/Рус. Дублированный/);
         await page.locator('#source-select').selectOption('vidlink');
-        await page.waitForFunction(() => document.querySelector('#kodik-player iframe')?.src.includes('vidlink.pro/tv/123/1/2'));
+        await page.waitForFunction(() => document.querySelector('#kodik-player iframe')?.src.includes('vidlink.pro/tv/123/1/1'));
         await page.locator('#kodik-player iframe').evaluate(frame => frame.dataset.previous = 'yes');
         await page.locator('#reload-player').click();
         assert.equal(await page.locator('#kodik-player iframe').getAttribute('data-previous'),null);
+        await page.locator('#next-player-source').click();
+        assert.equal(await page.locator('#source-select').inputValue(),'collaps');
         await page.close();
     });
     await test('Запоздалый ответ IMDb не переключает выбранный пользователем сервер', async () => {
@@ -465,6 +475,36 @@ try {
         const downloading=page.waitForEvent('download');await page.locator('#roulette-export').click();const download=await downloading;assert.equal(download.suggestedFilename(),'plus-plus-movies.txt');
         assert.match(await readFile(await download.path(),'utf8'),/Третий/);await page.close();
     });
+    await test('Каталог находит старую оценку при сбое планов и обновляет запись из другой вкладки', async () => {
+        const page=await context.newPage();
+        await page.addInitScript(()=>{window.__plansFail=true;window.__movies=[{id:'legacy',userId:'owner',type:'movie',title:'Тест 💕',poster:'https://image.tmdb.org/t/p/original/test.jpg',score:10,review:'Отлично'}];});
+        await page.goto(`${base}/pages/catalog.html`);
+        await page.waitForFunction(()=>document.querySelector('.library-badge')?.textContent.includes('10 из 10'));
+        await page.locator('.catalog-card').first().click();
+        await page.waitForFunction(()=>document.getElementById('detail-own-rating').textContent.includes('10.0'));
+        assert.equal(await page.locator('#detail-rate-btn').getAttribute('href'),'rate.html?edit=legacy');
+        await page.locator('#close-detail').click();
+        await page.evaluate(()=>window.__movies[0].score=8.5);
+        await page.locator('.catalog-card').first().click();
+        await page.waitForFunction(()=>document.getElementById('detail-own-rating').textContent.includes('8.5'));
+        assert.match(await page.locator('.library-badge').first().textContent(),/8.5/);
+        await page.close();
+    });
+    await test('Повторная оценка старого фильма обновляет найденную по постеру запись',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>window.__movies=[{id:'old-poster',userId:'owner',title:'Тест 💕',poster:'https://image.tmdb.org/t/p/w500/test.jpg',type:'movie',date:'01.01.2026',timestamp:{seconds:10}}]);
+        page.on('dialog',dialog=>dialog.accept());await page.goto(`${base}/pages/rate.html?id=123&type=movie`);
+        await page.waitForFunction(()=>!document.getElementById('movie-preview').classList.contains('hidden'));
+        await page.locator('#save-btn').click();await page.waitForFunction(()=>!!window.__updated);
+        assert.equal(await page.evaluate(()=>window.__updated.ref.id),'old-poster');
+        assert.equal(await page.evaluate(()=>window.__saved),undefined);await page.close();
+    });
+    await test('Импорт слишком большого объединённого списка рулетки сохраняет прежние данные',async()=>{
+        const page=await context.newPage();await page.goto(`${base}/pages/roulette.html`);await page.waitForFunction(()=>!document.getElementById('movie-list').disabled);
+        const original='А'.repeat(60000);await page.locator('#movie-list').fill(original);
+        await page.locator('#roulette-import').setInputFiles({name:'films.txt',mimeType:'text/plain',buffer:Buffer.from('Б'.repeat(50000))});
+        await page.waitForFunction(()=>document.getElementById('roulette-status').textContent.includes('превышает'));
+        assert.equal(await page.locator('#movie-list').inputValue(),original);await page.close();
+    });
     await test('Планы добавляются из каталога, отмечают карточку и фильтруются на отдельной странице', async () => {
         const page=await context.newPage();await page.goto(`${base}/pages/catalog.html`);await page.locator('.cat-plan-toggle').first().click();await page.waitForFunction(()=>!!Object.keys(window.__plans||{}).length);assert.equal(await page.locator('#detail-modal').isVisible(),false);await page.locator('.cat-plan-toggle').first().click();await page.waitForFunction(()=>!Object.keys(window.__plans||{}).length);await page.locator('.catalog-card').first().click();
         await page.waitForFunction(()=>!document.getElementById('detail-plan-btn').disabled);
@@ -484,6 +524,15 @@ try {
         const page=await context.newPage();await page.addInitScript(()=>{window.__profiles={owner:{displayName:'Первый',bio:'',photoURL:''},friend:{displayName:'Второй',bio:'',photoURL:''}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__movies=[];});await page.goto(`${base}/pages/rate.html?id=123&type=movie`);await page.waitForFunction(()=>!document.getElementById('movie-preview').classList.contains('hidden'));await page.locator('#is-duo-checkbox').check();await page.waitForSelector('#joint-friend-select option[value="friend"]',{state:'attached'});await page.locator('#joint-friend-select').selectOption('friend');await page.locator('#val-script-1').fill('9');await page.locator('#val-script-1').press('Tab');await page.locator('#val-script-2').fill('5');await page.locator('#val-script-2').press('Tab');await page.locator('#review-text').fill('Наш общий отзыв');if(process.env.JOINT_PREVIEW)await page.locator('.rating-editor').screenshot({path:'/tmp/plus-joint-editor.png'});await page.locator('#save-btn').click();await page.waitForFunction(()=>Object.keys(window.__jointRecords||{}).length===1);const state=await page.evaluate(()=>({joint:window.__jointRecords,movies:window.__movies}));assert.equal(state.movies.length,1);assert.equal(state.movies[0].jointPartnerId,'friend');assert.equal(Object.values(state.joint)[0].status,'pending');await page.close();
         const recipient=await context.newPage();await recipient.addInitScript(state=>{window.__viewer='friend';window.__profiles={owner:{displayName:'Первый',bio:'',photoURL:''},friend:{displayName:'Второй',bio:'',photoURL:''}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__jointRecords=state.joint;window.__movies=state.movies;},state);await recipient.goto(`${base}/pages/profile.html`);if(process.env.JOINT_PREVIEW){await recipient.locator('#joint-inbox-list .joint-invite').waitFor();await recipient.locator('#joint-inbox').screenshot({path:'/tmp/plus-joint-invitation.png'});}await recipient.getByRole('button',{name:'Подтвердить',exact:true}).click();await recipient.waitForFunction(()=>Object.values(window.__jointRecords)[0].status==='accepted');const records=await recipient.evaluate(()=>window.__movies);assert.equal(records.length,2);const copy=records.find(m=>m.userId==='friend');assert.equal(copy.review,'Наш общий отзыв');assert.deepEqual(copy.stats,state.movies[0].stats);assert.equal(copy.score,state.movies[0].score);assert.equal(copy.jointPartnerId,'owner');assert.equal(copy.jointFirstId,'owner');assert.equal(await recipient.getByRole('button',{name:'Подтвердить',exact:true}).count(),0);await recipient.close();
         const edit=await context.newPage();await edit.addInitScript(records=>{window.__viewer='friend';window.__profiles={friend:{displayName:'Второй',bio:'',photoURL:''},owner:{displayName:'Первый',bio:'',photoURL:''}};window.__movies=records;},records);await edit.goto(`${base}/pages/rate.html?edit=${encodeURIComponent(copy.id)}`);await edit.waitForFunction(()=>document.querySelector('.rate-page-heading h1').textContent==='Изменить оценку');assert.equal(await edit.locator('#val-script-1').inputValue(),'5.0');assert.equal(await edit.locator('#val-script-2').inputValue(),'9.0');assert.equal(await edit.locator('#joint-friend-select').isDisabled(),true);await edit.locator('#save-btn').click();await edit.waitForFunction(()=>!!window.__updated);assert.equal(await edit.evaluate(()=>window.__updated.data.stats.script),'5.0/9.0');assert.equal(await edit.evaluate(()=>Object.keys(window.__jointRecords||{}).length),0);await edit.close();
+    });
+    await test('Возврат из кеша браузера восстанавливает приглашения в собственном профиле',async()=>{
+        const page=await context.newPage();await page.goto(`${base}/pages/profile.html`);
+        await page.waitForFunction(()=>!document.getElementById('joint-inbox').hidden);
+        await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));
+        assert.equal(await page.locator('#joint-inbox').isVisible(),false);
+        await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
+        await page.waitForFunction(()=>!document.getElementById('joint-inbox').hidden);
+        await page.close();
     });
     await test('Удалённый друг и ошибка транзакции не оставляют половину совместной оценки',async()=>{
         const page=await context.newPage();await page.addInitScript(()=>{window.__profiles={owner:{displayName:'Я'},friend:{displayName:'Друг'}};window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};window.__movies=[];});await page.goto(`${base}/pages/rate.html?id=123&type=movie`);await page.waitForFunction(()=>!document.getElementById('movie-preview').classList.contains('hidden'));await page.locator('#is-duo-checkbox').check();await page.waitForSelector('#joint-friend-select option[value="friend"]',{state:'attached'});await page.locator('#joint-friend-select').selectOption('friend');await page.evaluate(()=>{window.__transactionFailOnce=true;});await page.locator('#save-btn').click();await page.waitForFunction(()=>!document.getElementById('save-btn').disabled);assert.equal(await page.evaluate(()=>window.__movies.length),0);assert.equal(await page.evaluate(()=>Object.keys(window.__jointRecords||{}).length),0);await page.evaluate(()=>{window.__friendRecords={};});await page.locator('#save-btn').click();await page.waitForFunction(()=>!document.getElementById('save-btn').disabled);assert.equal(await page.evaluate(()=>window.__movies.length),0);await page.close();
@@ -513,7 +562,7 @@ try {
         const page=await context.newPage();await page.addInitScript(()=>{window.__movies=[{id:'my-rating',userId:'owner',tmdbId:123,mediaType:'movie',type:'movie',title:'Тест',genres:'Драма',score:8.5,poster:'',review:'Этот отзыв виден в списке',date:'01.11.2026'}];});await page.goto(`${base}/pages/list.html`);await page.locator('#archive-view-list').click();assert.equal(await page.locator('#movies-grid').evaluate(e=>e.classList.contains('archive-list')),true);assert.equal(await page.locator('.archive-list-review').isVisible(),true);await page.locator('.movie-card').press('Enter');assert.equal(await page.locator('#am-edit-btn').getAttribute('href'),'rate.html?edit=my-rating');await page.locator('#close-archive-modal').click();await page.reload();await page.waitForFunction(()=>document.getElementById('movies-grid').classList.contains('archive-list'));await page.close();
     });
     await test('Продолжение просмотра восстанавливает источник и серию, главная показывает сохранённый тайтл', async () => {
-        const page=await context.newPage();await page.goto(`${base}/pages/watch.html?id=123&type=tv&title=Тест`);await page.locator('#episode-select').selectOption('2');await page.locator('#source-select').selectOption('vidlink');await page.waitForFunction(()=>JSON.parse(localStorage.getItem('watchHistory:owner'))?.[0]?.episode===2);await page.goto(`${base}/index.html`);await page.locator('#continue-list a').first().click();await page.waitForFunction(()=>document.querySelector('#kodik-player iframe')?.src.includes('/tv/123/1/2'));assert.equal(await page.locator('#source-select').inputValue(),'vidlink');await page.close();
+        const page=await context.newPage();await page.goto(`${base}/index.html`);await page.evaluate(()=>localStorage.setItem('watchHistory:owner',JSON.stringify([{tmdbId:123,mediaType:'tv',title:'Тест',source:'vidlink',season:1,episode:2}])));await page.goto(`${base}/pages/watch.html?id=123&type=tv&title=Тест&resume=1`);await page.waitForFunction(()=>JSON.parse(localStorage.getItem('watchHistory:owner'))?.[0]?.episode===2);await page.goto(`${base}/index.html`);await page.locator('#continue-list a').first().click();await page.waitForFunction(()=>document.querySelector('#kodik-player iframe')?.src.includes('/tv/123/1/2'));assert.equal(await page.locator('#source-select').inputValue(),'vidlink');await page.close();
     });
     await test('Аниме-источник находит точный релиз и передаёт настоящие эпизоды и качество', async () => {
         const page=await context.newPage();await page.route('https://aniliberty.top/api/v1/**',route=>{const url=new URL(route.request().url());return route.fulfill({json:url.pathname.includes('/search/')?[{id:413,name:{main:'Наруто'},year:2007,type:{description:'ТВ'}}]:{id:413,name:{main:'Наруто'},episodes:[{ordinal:1,hls_720:'https://cache.libria.fun/first.m3u8',hls_480:'https://cache.libria.fun/first-low.m3u8',duration:1000},{ordinal:2,hls_720:'https://cache.libria.fun/second.m3u8',duration:1000}]}});});
@@ -562,16 +611,50 @@ try {
         }
         await page.close();
     });
-    await test('Общий стиль не создаёт горизонтальную прокрутку, видео расположено перед настройками', async () => {
+    await test('Активность не дублирует вход и день, рулетка учитывает отдельные запуски',async()=>{
+        const page=await context.newPage();await page.goto(`${base}/pages/activity.html`);
+        const state=await page.evaluate(async()=>{sessionStorage.clear();const store=await import('/assets/js/activity-store.js');const user={uid:'owner',metadata:{lastSignInTime:'2026-11-02T12:00:00Z'}};await store.recordVisit(user);await store.recordVisit(user);await store.recordRouletteStart('owner','classic');await store.recordRouletteStart('owner','classic');return window.__journal;});
+        assert.equal(state.activityStats.owner.activeDays,1);assert.equal(state.activityStats.owner.logins,1);assert.equal(state.activityStats.owner.rouletteStarts,2);assert.equal(Object.keys(state.activityEvents).length,3);await page.close();
+    });
+    await test('Ручной досмотр синхронизируется один раз, история переживает обновления сессии',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>{try{localStorage.removeItem('watchOutbox:owner');}catch{}});await page.goto(`${base}/pages/watch.html?id=123&type=movie&title=Тест`);
+        await page.waitForFunction(()=>!document.getElementById('watch-complete').disabled);await page.locator('#watch-complete').click();await page.waitForFunction(()=>document.getElementById('watch-complete').textContent.includes('записан'));
+        const state=await page.evaluate(()=>window.__journal);const sessions=Object.values(state.watchSessions);assert.equal(sessions.length,1);assert.equal(sessions[0].completionMethod,'manual');assert.equal(sessions[0].watchedSeconds,0);assert.equal(state.activityStats.owner.completions,1);
+        const totals=await page.evaluate(async()=>{const store=await import('/assets/js/activity-store.js');const [id,data]=Object.entries(window.__journal.watchSessions)[0];delete data.createdAt;delete data.updatedAt;await store.saveWatchSession('owner',id,data);return window.__journal.activityStats.owner;});assert.equal(totals.completions,1);
+        if(process.env.ACTIVITY_PREVIEW){const journal=await page.evaluate(()=>window.__journal);await page.addInitScript(data=>window.__journal=data,journal);await page.goto(`${base}/pages/activity.html`);await page.waitForSelector('.activity-record');await page.screenshot({path:'/tmp/plus-activity-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/plus-activity-mobile.png',fullPage:true});}
+        await page.close();
+    });
+    await test('Версии оценки и удалённый друг сохраняются отдельно от текущих записей',async()=>{
+        const page=await context.newPage();await page.addInitScript(()=>{window.__movies=[{id:'revision',userId:'owner',title:'Тест',score:5,timestamp:{seconds:1},stats:{script:'5.0'}}];window.__friendRecords={'friend:owner':{members:['friend','owner'],senderId:'friend',status:'accepted'}};});await page.goto(`${base}/pages/activity.html`);
+        const journal=await page.evaluate(async()=>{const store=await import('/assets/js/activity-store.js');await store.saveRatingRecord('owner',{...window.__movies[0],score:9},'revision');await store.deleteWithHistory('owner','movies','revision');await store.deleteWithHistory('owner','friendships','friend:owner');return window.__journal;});
+        const revision=Object.values(journal.ratingHistory)[0];assert.equal(revision.before.score,5);assert.equal(revision.after.score,9);assert.equal(Object.values(journal.deletedItems).length,3);assert.ok(Object.values(journal.deletedItems).some(item=>item.userId==='friend'));
+        await page.locator('[data-history="ratingHistory"]').click();await page.waitForFunction(()=>document.querySelector('.activity-record h2')?.textContent==='Тест');assert.match(await page.locator('.activity-record').textContent(),/5.0 → 9.0/);await page.close();
+    });
+    await test('Автоматический досмотр считает воспроизведение, а повторная синхронизация не удваивает часы',async()=>{
+        const page=await context.newPage();await page.goto(`${base}/pages/activity.html`);
+        const result=await page.evaluate(async()=>{
+            localStorage.removeItem('watchOutbox:owner');const {createWatchTracker}=await import('/assets/js/watch-tracker.js');const tracker=createWatchTracker('owner',{tmdbId:1,mediaType:'movie',title:'Фильм'});
+            const original=performance.now.bind(performance);let now=0;Object.defineProperty(performance,'now',{configurable:true,value:()=>now});
+            try{tracker.start('aniliberty');tracker.sample({position:0,duration:6,playing:true});now=6000;tracker.sample({position:6,duration:6,playing:false,ended:true});await tracker.flush();await tracker.flush();return {snapshot:tracker.snapshot(),totals:window.__journal.activityStats.owner};}
+            finally{Object.defineProperty(performance,'now',{configurable:true,value:original});}
+        });
+        assert.equal(result.snapshot.watchedSeconds,6);assert.equal(result.snapshot.completionMethod,'automatic');assert.equal(result.totals.watchedSeconds,6);assert.equal(result.totals.completions,1);await page.close();
+    });
+    await test('Чужие сообщения не начисляют время просмотра',async()=>{
+        const page=await context.newPage();await page.goto(`${base}/pages/watch.html?id=123&type=movie&title=Тест`);await page.locator('#source-select').selectOption('vidlink');await page.waitForFunction(()=>document.querySelector('#kodik-player iframe')?.src.includes('vidlink.pro'));
+        await page.evaluate(()=>window.dispatchEvent(new MessageEvent('message',{origin:'https://evil.example',data:{type:'PLAYER_EVENT',data:{event:'ended',currentTime:100,duration:100,mtmdbId:123,mediaType:'movie'}}})));
+        assert.equal(await page.locator('#watch-complete').isDisabled(),false);await page.close();
+    });
+    await test('Общий стиль помещается на телефоне, управление источником доступно перед видео', async () => {
         const page = await context.newPage();
         for (const width of [1280,390]) {
             await page.setViewportSize({width,height:900});
-            for (const path of ['/index.html','/pages/list.html','/pages/plans.html','/pages/rate.html','/pages/roulette.html','/pages/profile.html','/pages/watch.html?id=123&type=movie&title=Тест']) {
+            for (const path of ['/index.html','/pages/list.html','/pages/plans.html','/pages/rate.html','/pages/roulette.html','/pages/activity.html','/pages/profile.html','/pages/watch.html?id=123&type=movie&title=Тест']) {
                 await page.goto(base+path);
                 await page.waitForTimeout(100);
                 assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Страница ${path} должна помещаться при ширине ${width}`);
                 if (path.includes('watch.html')) {
-                    const order = await page.evaluate(()=>!!(document.querySelector('.player-wrapper').compareDocumentPosition(document.getElementById('player-controls-panel')) & Node.DOCUMENT_POSITION_FOLLOWING));
+                    const order = await page.evaluate(()=>!!(document.getElementById('player-controls-panel').compareDocumentPosition(document.querySelector('.player-wrapper')) & Node.DOCUMENT_POSITION_FOLLOWING));
                     assert.equal(order,true);
                 }
                 if (process.env.CINEMA_PREVIEW) await page.screenshot({path:`/tmp/plus-cinema-${path.split('/').at(-1).split('.')[0]}-${width}.png`,fullPage:false});

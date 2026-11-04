@@ -1,6 +1,7 @@
+import { deleteWithHistory } from './activity-store.js';
 import { MASTERPIECE_BANNER } from './rating-style.js';
 import { getProfile, safeAvatar } from './profile-store.js';
-import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, deleteDoc, doc, signOut, limit, where, startAfter } from './firebase-init.js';
+import { auth, db, collection, getDocs, query, orderBy, onAuthStateChanged, signOut, limit, where, startAfter } from './firebase-init.js';
 import { escapeHtml, posterUrl, resolveMedia, watchUrl, trailerUrl } from './shared.js';
 
 let currentUser = null, loadedMovies = [], lastDocument = null, hasMore = true, loading = false;
@@ -222,7 +223,7 @@ document.getElementById('close-trailer').onclick = () => { document.getElementBy
 async function removeMovie(id) {
     if (!loadedMovies.some(movie => movie.id === id && movie.userId === currentUser?.uid) || !confirm('Точно удалить?')) return;
     try {
-        await deleteDoc(doc(db, "movies", id));
+        await deleteWithHistory(currentUser.uid,'movies',id);
         loadedMovies = loadedMovies.filter(m => m.id !== id);
         updateCounters(loadedMovies); renderGenres(loadedMovies); applyFiltersAndSort();
     } catch (e) { alert("Ошибка удаления"); }

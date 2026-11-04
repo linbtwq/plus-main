@@ -1,3 +1,4 @@
+import { recordRouletteStart } from './activity-store.js';
 import { auth, onAuthStateChanged, signOut } from './firebase-init.js';
 import { loadRoulette, saveRoulette } from './roulette-store.js';
 import { tmdb, posterUrl, NO_POSTER, readRoulette, writeRoulette, validId, watchUrl } from './shared.js';
@@ -120,6 +121,7 @@ spinBtn.onclick = async () => {
     if (!allMovies.length) return alert('Добавь хотя бы один тайтл или подготовь список из планов.');
     if (movies.length > 200) return alert('За один раз можно прокрутить до 200 тайтлов.');
     isSpinning = true;
+    recordRouletteStart(currentUser.uid,currentMode).catch(()=>{document.getElementById('roulette-status').textContent='Запуск не записан в историю: проверь подключение и правила доступа.';});
     clearTimeout(poolPreviewTimer);poolPreviewVersion++;
     spinBtn.disabled = true;
     textArea.disabled = true;
@@ -206,8 +208,14 @@ document.getElementById('roulette-export').addEventListener('click',()=>{
 document.getElementById('roulette-import').addEventListener('change',async event=>{
     const file=event.target.files[0];if(!file)return;
     if(file.size>100000){document.getElementById('roulette-status').textContent='Файл должен быть не больше 100 КБ';event.target.value='';return;}
-    const text=await file.text();if(isSpinning)return;
-    textArea.value=[...new Set([...listItems(),...text.replace(/^\uFEFF/,'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean)])].join('\n');saveList();event.target.value='';
+    try {
+        const text=await file.text();if(isSpinning)return;
+        const merged=[...new Set([...listItems(),...text.replace(/^\uFEFF/,'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean)])].join('\n');
+        // Размер проверяем после объединения: два допустимых списка могут превысить лимит вместе.
+        if(merged.length>100000){document.getElementById('roulette-status').textContent='Общий список превышает 100 000 символов. Текущий список сохранён.';return;}
+        textArea.value=merged;saveList();
+    } catch {document.getElementById('roulette-status').textContent='Не удалось прочитать файл. Попробуй выбрать его ещё раз.';}
+    finally {event.target.value='';}
 });
 document.getElementById('roulette-discover').addEventListener('click',async event=>{
     const button=event.currentTarget;button.disabled=true;

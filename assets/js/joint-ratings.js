@@ -1,3 +1,4 @@
+import { addRatingRevision } from './activity-store.js';
 import { db,doc,collection,getDocs,query,where,runTransaction,serverTimestamp } from './firebase-init.js';
 import { friendshipId,validUserId,getProfile } from './profile-store.js';
 
@@ -21,7 +22,7 @@ export async function saveJointRating(uid,movie,partner,existingId=''){
         const source=await transaction.get(reference),previous=await transaction.get(invitation);
         if(source.exists()&&source.data().userId!==uid)throw new Error('Нельзя изменять чужую оценку');
         const payload={...movie,userId:uid,timestamp:source.exists()?source.data().timestamp:movie.timestamp,jointPartnerId:partner.uid,jointPartnerName:partner.displayName,jointFirstId:uid};
-        transaction.set(reference,payload);
+        transaction.set(reference,payload);addRatingRevision(transaction,uid,reference.id,source.exists()?source.data():null,payload);
         if(previous.exists()&&previous.data().status==='accepted')return {id:reference.id,status:'accepted'};
         transaction.set(invitation,{senderId:uid,receiverId:partner.uid,members:[uid,partner.uid],sourceMovieId:reference.id,movie:payload,status:'pending',createdAt:previous.exists()?previous.data().createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
         return {id:reference.id,status:'pending'};
@@ -47,7 +48,8 @@ export async function respondJointRating(user,id,action){
             if(!relation.exists()||relation.data().status!=='accepted')throw new Error('Дружба больше не подтверждена');
             const existing=await transaction.get(copy);if(existing.exists())throw new Error('Копия оценки уже существует');
             const profile=await transaction.get(doc(db,'profiles',user.uid));
-            transaction.set(copy,{...invite.movie,userId:user.uid,authorName:profile.exists()?profile.data().displayName:user.displayName||'Киноман',authorPhoto:user.photoURL||null,timestamp:serverTimestamp(),jointPartnerId:invite.senderId,jointPartnerName:invite.movie.authorName});
+            const received={...invite.movie,userId:user.uid,authorName:profile.exists()?profile.data().displayName:user.displayName||'Киноман',authorPhoto:user.photoURL||null,timestamp:serverTimestamp(),jointPartnerId:invite.senderId,jointPartnerName:invite.movie.authorName};
+            transaction.set(copy,received);addRatingRevision(transaction,user.uid,copy.id,null,received,'joint');
         }
         transaction.set(reference,{...invite,status:action,updatedAt:serverTimestamp()});
         return copy.id;

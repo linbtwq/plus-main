@@ -1,3 +1,4 @@
+import { findRating } from './rating-match.js';
 import { posterSkeletons,emptyState } from './ui-states.js';
 import { getPlans, togglePlan, readAll, mediaKey } from './library-store.js';
 import { db, collection, query, where, getDocs } from './firebase-init.js';
@@ -210,7 +211,7 @@ async function openDetailModal(id, mediaType) {
         const refreshPlan=()=>{planButton.textContent=personalPlans.has(mediaKey(id,mediaType))?'✓ В планах':'♡ В планы';};
         refreshPlan();planButton.disabled=false;
         planButton.onclick=async()=>{planButton.disabled=true;try{const added=await togglePlan(auth.currentUser.uid,{...data,id,mediaType});if(request!==detailRequest)return;if(added)personalPlans.add(mediaKey(id,mediaType));else personalPlans.delete(mediaKey(id,mediaType));refreshPlan();document.querySelectorAll('.catalog-card').forEach(decorateCard);}catch{showToast('Не удалось сохранить планы. Попробуй ещё раз.');}finally{if(request===detailRequest)planButton.disabled=false;}};
-        renderPersonalDetail(id,mediaType,request);
+        renderPersonalDetail(id,mediaType,request,data);
 
     } catch (e) { 
         if (request === detailRequest && titleEl) titleEl.textContent = 'Ошибка загрузки';
@@ -320,19 +321,40 @@ let personalPlans=new Set(),personalRatings=[],personalReady=false,personalPromi
 function decorateCard(card){
     card.querySelector('.library-badge')?.remove();
     const planButton=card.querySelector('.cat-plan-toggle');if(planButton){const active=personalPlans.has(card.dataset.mediaKey);planButton.textContent=active?'✓':'♡';planButton.setAttribute('aria-pressed',String(active));planButton.setAttribute('aria-label',`${active?'Убрать из планов':'В планы'}: ${card.querySelector('.cat-title').textContent}`);}
-    const rating=personalRatings.find(m=>mediaKey(m.tmdbId,m.mediaType)===card.dataset.mediaKey);
+    const [mediaType,id]=card.dataset.mediaKey.split(':');
+    const rating=findRating(personalRatings,{id,mediaType,title:card.querySelector('.cat-title').textContent,poster:card.querySelector('img')?.src});
     const planned=personalPlans.has(card.dataset.mediaKey);
     card.classList.toggle('personal-masterpiece',Number(rating?.score)===10);
     if(!rating&&!planned)return;
     const badge=document.createElement('span');badge.className='library-badge';badge.textContent=rating?(Number(rating.score)===10?'Шедевр · Твои 10 из 10':`✓ Твоя ${Number(rating.score).toFixed(1)}`):'♡ В планах';card.querySelector('.cat-poster-wrapper').append(badge);
 }
 function loadPersonalLibrary(uid){
-    personalPromise=Promise.all([getPlans(uid),readAll('movies',uid)]).then(([plans,ratings])=>{if(auth.currentUser?.uid!==uid)return;personalPlans=new Set(plans.map(m=>mediaKey(m.tmdbId,m.mediaType)));personalRatings=ratings.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));personalReady=true;document.querySelectorAll('.catalog-card').forEach(decorateCard);}).catch(()=>{personalReady=false;});
+    // Сбой планов не должен скрывать успешно загруженные личные оценки.
+    personalPromise=Promise.allSettled([getPlans(uid),readAll('movies',uid)]).then(([plans,ratings])=>{
+        if(auth.currentUser?.uid!==uid)return;
+        if(plans.status==='fulfilled')personalPlans=new Set(plans.value.map(m=>mediaKey(m.tmdbId,m.mediaType)));
+        personalReady=ratings.status==='fulfilled';
+        if(personalReady)personalRatings=ratings.value.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));
+        document.querySelectorAll('.catalog-card').forEach(decorateCard);
+    });
 }
-async function renderPersonalDetail(id,type,request){
+async function renderPersonalDetail(id,type,request,data){
     await personalPromise;
+    const uid=auth.currentUser?.uid;
+    if(!uid||request!==detailRequest)return;
+    try {
+        const ratings=await readAll('movies',uid);
+        if(auth.currentUser?.uid!==uid||request!==detailRequest)return;
+        personalRatings=ratings.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));
+        personalReady=true;
+        document.querySelectorAll('.catalog-card').forEach(decorateCard);
+    } catch {
+        if(auth.currentUser?.uid!==uid||request!==detailRequest)return;
+        personalReady=false;
+    }
     if(request!==detailRequest)return;
-    const own=personalRatings.find(m=>mediaKey(m.tmdbId,m.mediaType)===mediaKey(id,type));
+    const target={id,mediaType:type,title:data.title||data.name,poster:data.poster_path?`https://image.tmdb.org/t/p/w500${data.poster_path}`:'',year:(data.release_date||data.first_air_date||'').slice(0,4)};
+    const own=findRating(personalRatings,target);
     document.getElementById('detail-own-rating').textContent=own?`Твоя оценка: ${Number(own.score).toFixed(1)}${own.review?' · '+own.review:''}`:personalReady?'Ты ещё не оценивал этот тайтл.':'Не удалось проверить твою оценку.';
     const rate=document.getElementById('detail-rate-btn');rate.textContent=own?'Изменить оценку':'Оценить';rate.href=`rate.html?${new URLSearchParams(own?{edit:own.id}:{id,type})}`;
     document.getElementById('detail-plan-btn').textContent=personalPlans.has(mediaKey(id,type))?'✓ В планах':'♡ В планы';
@@ -341,7 +363,7 @@ async function renderPersonalDetail(id,type,request){
         const snap=await getDocs(query(collection(db,'friendships'),where('members','array-contains',auth.currentUser.uid)));
         const friends=snap.docs.map(d=>d.data()).filter(d=>d.status==='accepted').map(d=>d.members.find(uid=>uid!==auth.currentUser.uid));
         const records=[];let index=0;
-        await Promise.all(Array.from({length:Math.min(3,friends.length)},async()=>{while(index<friends.length){const uid=friends[index++];const movies=await readAll('movies',uid);const found=movies.filter(m=>mediaKey(m.tmdbId,m.mediaType)===mediaKey(id,type)).sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0))[0];if(found)records.push({...found,uid});}}));
+        await Promise.all(Array.from({length:Math.min(3,friends.length)},async()=>{while(index<friends.length){const uid=friends[index++];const movies=await readAll('movies',uid);const found=findRating(movies.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0)),target);if(found)records.push({...found,uid});}}));
         if(request!==detailRequest)return;area.replaceChildren();
         if(!records.length){area.textContent='Друзья пока не оценили этот тайтл.';return;}
         for(const movie of records){const row=document.createElement('a');row.href=`profile.html?user=${encodeURIComponent(movie.uid)}`;row.className='friend-score-row';const name=document.createElement('span');name.textContent=movie.authorName||'Друг';const score=document.createElement('strong');score.textContent=Number(movie.score).toFixed(1);row.append(name,score);area.append(row);}

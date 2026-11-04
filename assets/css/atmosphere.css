@@ -125,3 +125,41 @@ input:not([type='range']):not([type='checkbox']):focus,textarea:focus,select:foc
 @media(max-width:480px){.joint-invite{grid-template-columns:44px minmax(0,1fr);gap:12px;padding:14px}.joint-invite>img{width:44px;height:66px}.joint-friend-area{padding:15px}}
 .archive-duo-legend { flex-wrap:wrap; }
 .archive-duo-legend>span { max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5; }
+
+/* Короткие реакции работают без слежения за мышью и наблюдения за всеми карточками. */
+.home-shortcuts>a,.home-trending>a,.continue-card,.plan-card { transition:transform 180ms var(--ease-soft),border-color 180ms; }
+.home-shortcuts>a>span:last-child { transition:translate 180ms var(--ease-soft); }
+.shortcut-symbol { transition:rotate 180ms var(--ease-soft); }
+@media(hover:hover) and (pointer:fine){
+    .home-shortcuts>a:hover,.home-trending>a:hover,.continue-card:hover,.plan-card:hover { transform:translateY(-2px);border-color:#789c85; }
+    .home-shortcuts>a:hover>span:last-child { translate:2px -2px; }
+    .home-shortcuts>a:hover .shortcut-symbol { rotate:-4deg; }
+}
+.profile-small-btn:focus-visible,.btn-retro:focus-visible,.home-shortcuts>a:focus-visible { outline:2px solid #a4c3aa;outline-offset:4px; }
+@media(prefers-reduced-motion:reduce){
+    .home-shortcuts>a,.home-shortcuts>a>span:last-child,.shortcut-symbol,.home-trending>a,.continue-card,.plan-card { transition:none !important; }
+    .home-shortcuts>a:hover,.home-trending>a:hover,.continue-card:hover,.plan-card:hover { transform:none; }
+    .home-shortcuts>a:hover>span:last-child { translate:none; }
+    .home-shortcuts>a:hover .shortcut-symbol { rotate:none; }
+}
+
+/* История использует статичные карточки: большой журнал не создаёт анимационную нагрузку. */
+.activity-wrapper { max-width:1050px;margin:0 auto;padding:36px 22px 100px; }
+.activity-wrapper h1 { font-size:clamp(1.7rem,4vw,2.5rem);margin:16px 0; }
+.activity-wrapper .section-topline { flex-wrap:wrap;gap:14px; }
+.activity-note,.activity-enrichment p,#activity-status,#activity-summary-status,.watch-history-panel p { color:#a6beb5;font-size:.82rem;line-height:1.7; }
+.activity-metrics { display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px;margin:24px 0; }
+.activity-metrics>div { background:#1c3234;border:1px solid #3d5a52;border-radius:12px;padding:17px;display:flex;flex-direction:column;gap:8px; }
+.activity-metrics strong { font-size:1.55rem;color:#d1dfc7; }.activity-metrics span{font-size:.75rem;color:#a6beb5}
+.activity-tabs { display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 18px; }
+.activity-tabs button { background:#182e32;border:1px solid #426257;border-radius:9px;padding:10px 14px;color:#b6cec3;font:inherit;font-size:.8rem;cursor:pointer; }
+.activity-tabs button[aria-pressed='true'] { background:#496b57;border-color:#85a083;color:#e2eadb; }
+.activity-list { display:grid;gap:13px;margin:16px 0; }
+.activity-record { padding:20px;background:linear-gradient(130deg,#1e372e,#20323b);border:1px solid #3c5b53;border-radius:13px;overflow-wrap:anywhere; }
+.activity-record h2 { font:600 1.05rem 'DM Sans',system-ui,sans-serif;margin:8px 0; }.activity-record p{font-size:.8rem;line-height:1.7;color:#adc3b7;margin:7px 0;white-space:pre-wrap}
+.activity-record small{font-size:.7rem;color:#92ada3}.activity-record details{margin-top:13px;font-size:.8rem;color:#b4ccc0}.activity-record summary{cursor:pointer}.activity-record pre{white-space:pre-wrap;font-size:.72rem;line-height:1.6;margin-top:12px}
+.activity-record a { display:inline-block;margin-top:12px; }.activity-enrichment{margin-top:38px;padding-top:24px;border-top:1px solid #3c5b53}.activity-enrichment h2{font-size:1.1rem;margin-bottom:12px}
+.watch-history-panel { padding:18px 0; }.watch-history-panel .section-topline{gap:14px;flex-wrap:wrap}.watch-history-panel a{font-size:.8rem}
+@media(max-width:480px){.activity-wrapper{padding:24px 16px 90px}.activity-record{padding:16px}.activity-tabs button{padding:9px 10px;font-size:.73rem}}
+
+@media(max-width:480px){.activity-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.activity-metrics>div{padding:13px 10px;gap:7px}.activity-metrics strong{font-size:1.3rem}.activity-metrics span{font-size:.66rem;line-height:1.4}}

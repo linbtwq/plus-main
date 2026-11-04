@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>plus.plus | Просмотр</title>
-    <link rel="stylesheet" href="../assets/css/style.css?v=20261101-atmosphere">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261102-activity">
     <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 </head>
 <body class="watch-page">
@@ -48,9 +48,6 @@
 
         </div>
 
-        <div class="player-wrapper">
-            <div id="kodik-player"></div>
-        </div>
 
 
         <!-- ПУЛЬТ УПРАВЛЕНИЯ -->
@@ -67,14 +64,7 @@
                         <option value="vidlink">VidLink</option>
                     </select>
                 </div>
-                <div class="control-group" id="season-group" style="display: none;">
-                    <span>Сезон</span>
-                    <select id="season-select"></select>
-                </div>
-                <div class="control-group" id="episode-group" style="display: none;">
-                    <span>Серия</span>
-                    <select id="episode-select"></select>
-                </div>
+
             </div>
 
             <section id="anime-panel" class="anime-panel" hidden>
@@ -89,12 +79,18 @@
                 <div class="translation-label">Озвучка и дубляж</div>
                 <p id="audio-hint" class="player-audio-hint"></p>
             </div>
-            <div class="player-actions"><button id="reload-player" type="button" class="profile-small-btn">Перезапустить плеер</button><p id="player-status" role="status" aria-live="polite"></p></div>
+            <p class="player-audio-hint">Если внутри плеера появилась ошибка загрузки видео, попробуй другой источник. Доступность видео и русских дорожек зависит от выбранного сервера.</p>
+            <div class="player-actions"><button id="next-player-source" type="button" class="profile-small-btn">Другой источник</button><button id="reload-player" type="button" class="profile-small-btn">Перезапустить плеер</button><p id="player-status" role="status" aria-live="polite"></p></div>
         </div>
+
+        <div class="player-wrapper">
+            <div id="kodik-player"></div>
+        </div>
+        <section class="watch-history-panel" aria-label="История просмотра"><div class="section-topline"><button id="watch-complete" type="button" class="profile-small-btn" disabled>Отметить просмотренным</button><a href="activity.html">Моя история ↗</a></div><p id="watch-tracking-note"></p><p id="watch-history-status" role="status" aria-live="polite"></p></section>
 
     </main>
     <script src="../assets/js/burger.js"></script>
-    <script type="module" src="../assets/js/interface.js"></script>
+    <script type="module" src="../assets/js/interface.js?v=20261102-lite"></script>
     <script type="module" src="../assets/js/watch.js"></script>
 </body>
 </html>

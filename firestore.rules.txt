@@ -12,9 +12,18 @@ service cloud.firestore {
           : value.matches('([0-4]\\.[0-9]|5\\.0)/([0-4]\\.[0-9]|5\\.0)'))
         : (max == 10 ? value.matches('[0-9]\\.[0-9]|10\\.0') : value.matches('[0-4]\\.[0-9]|5\\.0')));
     }
+    function validMetadata(m) {
+      return m is map && m.keys().hasAll(['year','runtime','directors','creators','actors','countries'])
+        && m.keys().hasOnly(['year','runtime','directors','creators','actors','countries'])
+        && m.year is int && (m.year == 0 || (m.year >= 1870 && m.year <= 2200))
+        && m.runtime is number && m.runtime >= 0 && m.runtime <= 10000
+        && m.directors is list && m.directors.size() <= 10 && m.creators is list && m.creators.size() <= 10
+        && m.actors is list && m.actors.size() <= 20 && m.countries is list && m.countries.size() <= 30;
+    }
     function validMovie(d) {
       return d.keys().hasAll(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion'])
-        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion', 'ratingMode', 'jointPartnerId', 'jointPartnerName', 'jointFirstId'])
+        && d.keys().hasOnly(['userId', 'title', 'score', 'type', 'poster', 'genres', 'authorName', 'authorPhoto', 'timestamp', 'date', 'stats', 'review', 'isDuo', 'tmdbId', 'mediaType', 'schemaVersion', 'metadata', 'ratingMode', 'jointPartnerId', 'jointPartnerName', 'jointFirstId'])
+        && (!('metadata' in d) || validMetadata(d.metadata))
         && d.get('ratingMode', 'detailed') in ['quick', 'detailed']
         && d.get('jointPartnerId', '') is string && d.get('jointPartnerId', '').size() <= 128
         && d.get('jointFirstId', '') is string && d.get('jointFirstId', '').size() <= 128
@@ -185,6 +194,100 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         && request.resource.data.updatedAt == request.time;
       allow delete: if member(resource.data);
+    }
+    // Журналы личные: друзья не видят входы, удалённые записи и историю изменений.
+    function ownJournal(id, d) {
+      return request.auth != null && d.userId == request.auth.uid && id.matches(request.auth.uid + ':[A-Za-z0-9:_-]{1,500}');
+    }
+    match /activityStats/{uid} {
+      function validStats(d) {
+        return d.keys().hasAll(['userId','watchedSeconds','completions','rouletteStarts','logins','activeDays','currentStreak','bestStreak','lastDay','updatedAt'])
+          && d.keys().hasOnly(['userId','watchedSeconds','completions','rouletteStarts','logins','activeDays','currentStreak','bestStreak','lastDay','updatedAt'])
+          && d.userId == uid && d.watchedSeconds is number && d.watchedSeconds >= 0 && d.watchedSeconds <= 1000000000000
+          && d.completions is int && d.completions >= 0 && d.rouletteStarts is int && d.rouletteStarts >= 0
+          && d.logins is int && d.logins >= 0 && d.activeDays is int && d.activeDays >= 0
+          && d.currentStreak is int && d.currentStreak >= 0 && d.bestStreak is int && d.bestStreak >= d.currentStreak
+          && d.lastDay is string && (d.lastDay == '' || d.lastDay.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'))
+          && d.updatedAt == request.time;
+      }
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid && validStats(request.resource.data);
+    }
+    match /activityDays/{id} {
+      allow get: if request.auth != null && id.matches(request.auth.uid + ':[0-9]{4}-[0-9]{2}-[0-9]{2}');
+      allow list: if owner(resource.data);
+      allow create: if ownJournal(id,request.resource.data)
+        && request.resource.data.keys().hasAll(['userId','date','timezone','createdAt'])
+        && request.resource.data.keys().hasOnly(['userId','date','timezone','createdAt'])
+        && id == request.auth.uid + ':' + request.resource.data.date
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.timezone is string && request.resource.data.timezone.size() <= 100
+        && request.resource.data.createdAt == request.time;
+    }
+    match /activityEvents/{id} {
+      allow get: if request.auth != null && id.matches(request.auth.uid + ':[A-Za-z0-9:_-]{1,500}');
+      allow list: if owner(resource.data);
+      allow create: if ownJournal(id,request.resource.data)
+        && request.resource.data.keys().hasAll(['userId','type','label','occurredAt','createdAt'])
+        && request.resource.data.keys().hasOnly(['userId','type','label','occurredAt','createdAt'])
+        && request.resource.data.type in ['login','roulette'] && request.resource.data.label is string && request.resource.data.label.size() <= 200
+        && request.resource.data.occurredAt is int && request.resource.data.occurredAt > 0
+        && request.resource.data.createdAt == request.time;
+    }
+    match /watchSessions/{id} {
+      function validSession(d) {
+        return ownJournal(id,d) && d.keys().hasAll(['userId','tmdbId','mediaType','title','source','season','episode','animeRelease','position','duration','watchedSeconds','completed','completionMethod','createdAt','updatedAt'])
+          && d.keys().hasOnly(['userId','tmdbId','mediaType','title','source','season','episode','animeRelease','position','duration','watchedSeconds','completed','completionMethod','createdAt','updatedAt'])
+          && d.tmdbId is int && d.tmdbId > 0 && d.mediaType in ['movie','tv']
+          && d.title is string && d.title.size() > 0 && d.title.size() <= 500
+          && d.source in ['collaps','vidsrc','2embed','superembed','vidlink','aniliberty']
+          && d.season is int && d.season > 0 && d.episode is int && d.episode > 0 && d.animeRelease is int && d.animeRelease >= 0
+          && d.position is number && d.position >= 0 && d.position <= 604800
+          && d.duration is number && d.duration >= 0 && d.duration <= 604800
+          && d.watchedSeconds is int && d.watchedSeconds >= 0 && d.watchedSeconds <= 604800
+          && d.completed is bool && d.completionMethod in ['none','automatic','manual']
+          && (d.completed ? d.completionMethod != 'none' : d.completionMethod == 'none')
+          && d.createdAt is timestamp && d.updatedAt == request.time;
+      }
+      allow get: if request.auth != null && id.matches(request.auth.uid + ':[A-Za-z0-9:_-]{1,500}');
+      allow list: if owner(resource.data);
+      allow create: if validSession(request.resource.data) && request.resource.data.createdAt == request.time;
+      allow update: if owner(resource.data) && validSession(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.tmdbId == resource.data.tmdbId && request.resource.data.mediaType == resource.data.mediaType
+        && request.resource.data.source == resource.data.source && request.resource.data.season == resource.data.season
+        && request.resource.data.episode == resource.data.episode && request.resource.data.animeRelease == resource.data.animeRelease
+        && request.resource.data.watchedSeconds >= resource.data.watchedSeconds
+        && (!resource.data.completed || (request.resource.data.completed && request.resource.data.completionMethod == resource.data.completionMethod));
+    }
+    match /ratingHistory/{id} {
+      allow read: if owner(resource.data);
+      allow create: if ownJournal(id,request.resource.data)
+        && request.resource.data.keys().hasAll(['userId','movieId','before','after','reason','createdAt'])
+        && request.resource.data.keys().hasOnly(['userId','movieId','before','after','reason','createdAt'])
+        && request.resource.data.movieId is string && request.resource.data.movieId.matches('[A-Za-z0-9:_-]{1,1000}')
+        && request.resource.data.reason in ['rating','joint','metadata'] && request.resource.data.createdAt == request.time
+        && request.resource.data.after.userId == request.auth.uid
+        && request.resource.data.after == getAfter(/databases/$(database)/documents/movies/$(request.resource.data.movieId)).data
+        && (request.resource.data.before == null
+          ? !exists(/databases/$(database)/documents/movies/$(request.resource.data.movieId))
+          : request.resource.data.before == get(/databases/$(database)/documents/movies/$(request.resource.data.movieId)).data);
+    }
+    match /deletedItems/{id} {
+      allow read: if owner(resource.data);
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['userId','actorId','collectionName','itemId','snapshot','createdAt'])
+        && request.resource.data.keys().hasOnly(['userId','actorId','collectionName','itemId','snapshot','createdAt'])
+        && request.resource.data.userId is string && id.matches(request.resource.data.userId + ':[A-Za-z0-9:_-]{1,500}')
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.collectionName in ['movies','plans','friendships']
+        && request.resource.data.itemId is string && request.resource.data.itemId.matches('[A-Za-z0-9:_-]{1,1000}')
+        && request.resource.data.snapshot == get(/databases/$(database)/documents/$(request.resource.data.collectionName)/$(request.resource.data.itemId)).data
+        && !existsAfter(/databases/$(database)/documents/$(request.resource.data.collectionName)/$(request.resource.data.itemId))
+        && (request.resource.data.collectionName == 'friendships'
+          ? (request.auth.uid in request.resource.data.snapshot.members && request.resource.data.userId in request.resource.data.snapshot.members)
+          : (request.resource.data.userId == request.auth.uid && request.resource.data.snapshot.userId == request.auth.uid))
+        && request.resource.data.createdAt == request.time;
     }
     match /{document=**} {
       allow read, write: if false;

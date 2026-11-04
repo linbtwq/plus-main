@@ -17,3 +17,10 @@ test('Аниме-плеер принимает только HTTPS HLS довер
     assert.equal(safeAnimeStream('https://cache.libria.fun/video.m3u8?key=abc'),'https://cache.libria.fun/video.m3u8?key=abc');
     for(const url of ['javascript:alert(1)','https://libria.fun.evil.example/video.m3u8','http://cache.libria.fun/video.m3u8','https://evil.example/video.m3u8','https://cache.libria.fun/file.html'])assert.equal(safeAnimeStream(url),'');
 });
+
+test('Повреждённый элемент истории не скрывает остальные просмотренные фильмы',()=>{
+    const movie={tmdbId:123,mediaType:'movie',source:'collaps',season:1,episode:1};
+    globalThis.localStorage={getItem:()=>JSON.stringify([null,movie,42])};
+    try {assert.deepEqual(readWatchHistory('owner'),[movie]);}
+    finally {delete globalThis.localStorage;}
+});

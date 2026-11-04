@@ -41,3 +41,18 @@ test('Списки разных аккаунтов изолированы', () =
         assert.throws(() => writeRoulette(null, 'Test'));
     } finally { delete globalThis.localStorage; }
 });
+
+test('Старые записи не открывают случайный результат поиска или одноимённый ремейк', async () => {
+    const original=globalThis.fetch;
+    try {
+        globalThis.fetch=async url=>{
+            assert.equal(new URL(url).searchParams.get('query'),'майкл');
+            return {ok:true,json:async()=>({results:[{id:1,title:'Майкл',poster_path:'/old.jpg',release_date:'1996-01-01'},{id:2,title:'Майкл',poster_path:'/new.jpg',release_date:'2026-01-01'}]})};
+        };
+        assert.deepEqual(await resolveMedia({title:'Майкл 💕',poster:'https://image.tmdb.org/t/p/w500/new.jpg'}),{id:2,mediaType:'movie'});
+        await assert.rejects(resolveMedia({title:'Майкл'}),/однозначно/);
+        assert.deepEqual(await resolveMedia({title:'Майкл',year:1996}),{id:1,mediaType:'movie'});
+        globalThis.fetch=async()=>({ok:true,json:async()=>({results:[{id:3,title:'Совсем другое'}]})});
+        await assert.rejects(resolveMedia({title:'Майкл'}),/однозначно/);
+    } finally { globalThis.fetch=original; }
+});

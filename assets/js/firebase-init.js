@@ -17,3 +17,10 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 export { auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, limit, where, startAfter, getDoc, setDoc, runTransaction, onSnapshot };
+
+// Дни активности фиксируются один раз за день; отказ журналирования не блокирует вход.
+onAuthStateChanged(auth,user=>{
+    if(!user)return;
+    import('./activity-store.js').then(module=>module.recordVisit(user)).catch(error=>console.warn('Не удалось синхронизировать активность:',error.code||error.message));
+    import('./watch-tracker.js').then(module=>module.flushWatchOutbox(user.uid)).catch(()=>{});
+});
