@@ -29,7 +29,7 @@ export async function syncAchievements(uid,{full=false,sources=[]}={}){
  });
  clearAchievementPending(uid,Object.fromEntries(Object.entries(pending).filter(([name])=>!failed.includes(name))));
  const known=new Map(owned.map(row=>[row.achievementId,row]));for(const id of result.unlocked)known.set(id,{achievementId:id,unlockedAt:{seconds:Date.now()/1000}});
- return {...result,owned:[...known.values()],failed,total:ACHIEVEMENTS.length};
+ return {...result,owned:[...known.values()],failed,total:ACHIEVEMENTS.length,metadataMissing:(data.movies||[]).filter(movie=>!movie.metadata).length};
 }
 export async function readFeatured(uid){const snapshot=await getDoc(doc(db,'achievementCabinets',uid));return snapshot.exists()?snapshot.data().badges.filter(id=>ACHIEVEMENT_BY_ID.has(id)):[];}
 export async function setFeatured(uid,ids){
